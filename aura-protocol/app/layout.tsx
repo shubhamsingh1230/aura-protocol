@@ -14,10 +14,9 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const handleNavClick = (href: string) => {
-    // Keeps the UI fluid while fetching the route in the background
     startTransition(() => {
       router.push(href);
     });
@@ -43,12 +42,9 @@ export default function BottomNav() {
               <span className="text-xl">{item.icon}</span>
               <span className="tracking-wide text-[11px]">{item.label}</span>
               
-              {/* Active indicator dot */}
+              {/* Stable CSS active indicator (Hydration safe) */}
               {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow"
-                />
+                <div className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
               )}
             </motion.button>
           );
