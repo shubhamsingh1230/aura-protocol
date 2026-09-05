@@ -144,7 +144,12 @@ function HeroImage({
   return (
     <div className="relative aspect-square rounded-xl overflow-hidden bg-card-active">
       {src ? (
-        <img src={src} alt={label} className="w-full h-full object-cover" />
+        <img
+          src={src}
+          alt={label}
+          onContextMenu={(e) => e.preventDefault()} // <-- BLOCKS MOBILE LONG-PRESS MENU
+          className="w-full h-full object-cover select-none [-webkit-touch-callout:none] [-webkit-user-select:none]" // <-- DISABLES MOBILE HIGHLIGHTING
+        />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-grey-flat">
           <span className="text-xl">{fallback}</span>
