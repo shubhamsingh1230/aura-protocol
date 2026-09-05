@@ -16,7 +16,7 @@ async function assertIsAdmin() {
     .eq("id", user.id)
     .single();
 
-  return profile?.role_tag === "ADMIN";
+  return (profile as any)?.role_tag === "ADMIN";
 }
 
 export async function GET() {
