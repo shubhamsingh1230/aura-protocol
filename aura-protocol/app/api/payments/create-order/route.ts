@@ -24,11 +24,12 @@ export async function POST() {
     return NextResponse.json({ error: "No active season is open right now." }, { status: 400 });
   }
 
-  const order = await createRazorpayOrder({
-    amountInr: season.entry_stake_inr,
-    receipt: `stake_${user.id}_${season.id}`,
-    notes: { user_id: user.id, season_id: season.id },
-  });
+ const order = await createRazorpayOrder({
+  amountInr: season.entry_stake_inr,
+  // Shortened to easily bypass Razorpay's 56-character limit
+  receipt: `stk_${user.id.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
+  notes: { user_id: user.id, season_id: season.id },
+});
 
   const { error } = await service.from("stakes").upsert(
     {
