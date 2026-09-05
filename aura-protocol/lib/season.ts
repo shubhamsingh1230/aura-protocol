@@ -1,21 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
 
-/**
- * A profile's stake_paid flag is a one-time "cleared the paywall once" bit —
- * it doesn't know a new season started. This checks the thing that
- * actually gates dashboard access: a stake row for the CURRENT active
- * season in a status that counts as "in the game" (paid, or already
- * settled as refunded/won from a previous read of this same season).
- */
 export async function hasLiveStakeInActiveSeason(userId: string): Promise<{
   hasStake: boolean;
   seasonId: string | null;
 }> {
   const supabase = createClient();
 
-  const { data: season } = await supabase.rpc("get_active_season");
-  if (!season) return { hasStake: false, seasonId: null };
+  // Call the database function to get the active season
+  const { data: seasonData } = await supabase.rpc("get_active_season");
 
+  // SAFETY FIX: Check if Supabase returned an array and grab the first item, or use the object directly
+  const season = Array.isArray(seasonData) ? seasonData[0] : seasonData;
+
+  // If there is no active season or no valid ID, return false safely
+  if (!season || !season.id) {
+    return { hasStake: false, seasonId: null };
+  }
+
+  // Check if a stake exists for this user in this specific season with a valid status
   const { data: stake } = await supabase
     .from("stakes")
     .select("status")
