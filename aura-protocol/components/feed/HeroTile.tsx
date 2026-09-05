@@ -75,8 +75,7 @@ export default function HeroTile({
         <HeroImage src={log.grind_img} label={author.grind_label} fallback="💻" />
       </div>
 
-      {/* Data stamp — claimed calories + goal status, so the feed isn't just
-          photos with no numbers behind them. */}
+      {/* Data stamp — claimed calories + goal status */}
       {(log.calories_logged != null || log.gesture_verified) && (
         <div className="flex items-center gap-2 text-[11px] text-grey-text mb-2 px-0.5 flex-wrap">
           {log.calories_logged != null && (
@@ -114,7 +113,12 @@ export default function HeroTile({
               {MEAL_LABELS.map((m) => (
                 <div key={m.slot} className="aspect-square rounded-lg overflow-hidden bg-card-active">
                   {log[m.slot] ? (
-                    <img src={log[m.slot] as string} alt={m.label} className="w-full h-full object-cover" />
+                    <img 
+                      src={log[m.slot] as string} 
+                      alt={m.label} 
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="w-full h-full object-cover select-none [-webkit-touch-callout:none] [-webkit-user-select:none]" 
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-grey-flat text-[10px]">
                       {m.label}
@@ -144,11 +148,11 @@ function HeroImage({
   return (
     <div className="relative aspect-square rounded-xl overflow-hidden bg-card-active">
       {src ? (
-        <img
-          src={src}
-          alt={label}
-          onContextMenu={(e) => e.preventDefault()} // <-- BLOCKS MOBILE LONG-PRESS MENU
-          className="w-full h-full object-cover select-none [-webkit-touch-callout:none] [-webkit-user-select:none]" // <-- DISABLES MOBILE HIGHLIGHTING
+        <img 
+          src={src} 
+          alt={label} 
+          onContextMenu={(e) => e.preventDefault()}
+          className="w-full h-full object-cover select-none [-webkit-touch-callout:none] [-webkit-user-select:none]" 
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-grey-flat">
