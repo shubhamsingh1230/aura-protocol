@@ -1,28 +1,59 @@
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import BottomNav from "@/components/ui/BottomNav";
+"use client";
 
-export const metadata: Metadata = {
-  title: "THE AURA PROTOCOL",
-  description: "Stake ₹100. Show up for 7 pillars a day. Own the leaderboard.",
-};
+import { useTransition } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+import clsx from "clsx";
 
-export const viewport: Viewport = {
-  themeColor: "#000000",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-};
+const NAV_ITEMS = [
+  { label: "Home", href: "/", icon: "🏠" },
+  { label: "Feed", href: "/feed", icon: "🔥" },
+  { label: "Ranks", href: "/leaderboard", icon: "👑" },
+];
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function BottomNav() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isPending, startTransition] = useTransition();
+
+  const handleNavClick = (href: string) => {
+    // Keeps the UI fluid while fetching the route in the background
+    startTransition(() => {
+      router.push(href);
+    });
+  };
+
   return (
-    <html lang="en" className="dark">
-      <body className="bg-canvas text-white min-h-screen pb-24">
-        <div className="mx-auto w-full max-w-md min-h-screen relative">
-          {children}
-        </div>
-        <BottomNav />
-      </body>
-    </html>
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 px-4 pointer-events-none">
+      <div className="w-full max-w-md glass border border-white/10 rounded-2xl px-6 py-3 flex justify-between items-center pointer-events-auto shadow-2xl backdrop-blur-xl">
+        {NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.href;
+
+          return (
+            <motion.button
+              key={item.href}
+              whileTap={{ scale: 0.85 }} // Instant micro-compression on touch
+              transition={{ duration: 0.05, ease: "easeOut" }}
+              onClick={() => handleNavClick(item.href)}
+              className={clsx(
+                "flex flex-col items-center gap-1 text-xs transition-colors relative py-1 px-3 rounded-xl",
+                isActive ? "text-mint font-semibold bg-white/5" : "text-grey-text hover:text-white"
+              )}
+            >
+              <span className="text-xl">{item.icon}</span>
+              <span className="tracking-wide text-[11px]">{item.label}</span>
+              
+              {/* Active indicator dot */}
+              {isActive && (
+                <motion.div
+                  layoutId="activeIndicator"
+                  className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow"
+                />
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
