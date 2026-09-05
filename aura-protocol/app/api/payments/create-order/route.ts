@@ -2,13 +2,18 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createRazorpayOrder } from "@/lib/razorpay";
 
+// Generates the current ISO week string (e.g., '2026-W36')
+function getCurrentWeekId(): string {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
 export async function POST() {
-  // ADD THIS QUICK TEST:
-  console.log("DEBUG KEYS:", {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Exists" : "MISSING",
-    anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Exists" : "MISSING",
-    service: process.env.SUPABASE_SERVICE_ROLE_KEY ? "Exists" : "MISSING",
-  });
   const supabase = createClient();
   const {
     data: { user },
@@ -16,30 +21,26 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const service = createServiceClient();
+  const weekId = getCurrentWeekId();
+  const stakeAmountInr = 10; // Fixed ₹10 weekly stake
 
-  // get_active_season() returns a single row (not SETOF), so PostgREST
-  // hands back the row object directly — no .single() needed here.
-  const { data: season } = await service.rpc("get_active_season");
-  if (!season) {
-    return NextResponse.json({ error: "No active season is open right now." }, { status: 400 });
-  }
+  // Create Razorpay order for the weekly stake
+  const order = await createRazorpayOrder({
+    amountInr: stakeAmountInr,
+    receipt: `stk_${user.id.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
+    notes: { user_id: user.id, week_id: weekId },
+  });
 
- const order = await createRazorpayOrder({
-  amountInr: season.entry_stake_inr,
-  // Shortened to easily bypass Razorpay's 56-character limit
-  receipt: `stk_${user.id.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
-  notes: { user_id: user.id, season_id: season.id },
-});
-
+  // Upsert the stake record tied to the current week
   const { error } = await service.from("stakes").upsert(
     {
       user_id: user.id,
-      season_id: season.id,
-      amount_inr: season.entry_stake_inr,
+      week_id: weekId,
+      amount_inr: stakeAmountInr,
       razorpay_order_id: order.id,
       status: "created",
     },
-    { onConflict: "user_id,season_id" }
+    { onConflict: "user_id,week_id" }
   );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
