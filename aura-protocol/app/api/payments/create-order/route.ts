@@ -3,6 +3,12 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createRazorpayOrder } from "@/lib/razorpay";
 
 export async function POST() {
+  // ADD THIS QUICK TEST:
+  console.log("DEBUG KEYS:", {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Exists" : "MISSING",
+    anon: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Exists" : "MISSING",
+    service: process.env.SUPABASE_SERVICE_ROLE_KEY ? "Exists" : "MISSING",
+  });
   const supabase = createClient();
   const {
     data: { user },
