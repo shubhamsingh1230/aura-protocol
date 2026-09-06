@@ -8,7 +8,7 @@ export default async function FeedPage() {
 
   if (!user) return redirect("/login");
 
-  // Fetch all posts and profiles on the server
+  // Fetch all posts and profiles securely on the server
   const { data: posts } = await supabase
     .from('posts')
     .select('*')
