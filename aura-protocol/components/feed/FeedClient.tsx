@@ -6,7 +6,7 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
   const profileMap = new Map();
   (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
 
-  // Group posts by user_id into unified operator cards
+  // Group posts by user_id into unified 7-block operator cards
   const userPostsMap = new Map();
   (initialPosts || []).forEach((post: any) => {
     if (!userPostsMap.has(post.user_id)) {
@@ -37,7 +37,8 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
         {feedCards.length > 0 ? (
           feedCards.map((card: any) => {
             const profile = profileMap.get(card.userId) || {};
-            const name = profile.full_name || "Aura Operator";
+            // Smarter name fallback so it doesn't just show "Aura Operator" if a name exists
+            const name = profile.full_name || profile.username || `Operator_${card.userId.slice(0, 4)}`;
             const timeAgo = new Date(card.latestTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return (
