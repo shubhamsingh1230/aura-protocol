@@ -8,26 +8,23 @@ export default async function FeedPage() {
 
   if (!user) return redirect("/login");
 
-  // Fetch posts with the correct user profile relation join
-  const { data: posts, error } = await supabase
+  // 1. Fetch all posts directly
+  const { data: posts, error: postsError } = await supabase
     .from('posts')
-    .select(`
-      id,
-      user_id,
-      image_url,
-      caption,
-      activity,
-      created_at,
-      profiles:user_id (
-        full_name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error("Error fetching feed posts:", error.message);
+  if (postsError) {
+    console.error("Error fetching posts:", postsError.message);
   }
+
+  // 2. Fetch all profiles to map names/avatars safely
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url');
+
+  const profileMap = new Map();
+  (profiles || []).forEach((p) => profileMap.set(p.id, p));
 
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
@@ -39,7 +36,7 @@ export default async function FeedPage() {
       <div className="space-y-4">
         {posts && posts.length > 0 ? (
           posts.map((post: any) => {
-            const profile = post.profiles || {};
+            const profile = profileMap.get(post.user_id) || {};
             const name = profile.full_name || "Aura Operator";
             const timeAgo = new Date(post.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
