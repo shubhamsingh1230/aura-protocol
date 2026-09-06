@@ -1,8 +1,7 @@
 "use client";
 
-import { useTransition, useState, useEffect } from "react";
+import { useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import clsx from "clsx";
 
 const NAV_ITEMS = [
@@ -15,15 +14,6 @@ export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [, startTransition] = useTransition();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return null;
-  }
 
   const handleNavClick = (href: string) => {
     startTransition(() => {
@@ -38,24 +28,22 @@ export default function BottomNav() {
           const isActive = pathname === item.href;
 
           return (
-            <motion.button
+            <button
               key={item.href}
-              whileTap={{ scale: 0.85 }}
-              transition={{ duration: 0.05, ease: "easeOut" }}
               onClick={() => handleNavClick(item.href)}
               className={clsx(
-                "flex flex-col items-center gap-1 text-xs transition-colors relative py-1 px-3 rounded-xl",
+                // active:scale-90 mimics the Framer Motion tap instantly without JS overhead
+                "flex flex-col items-center gap-1 text-xs transition-all duration-100 ease-out relative py-1 px-3 rounded-xl active:scale-90",
                 isActive ? "text-mint font-semibold bg-white/5" : "text-grey-text hover:text-white"
               )}
             >
               <span className="text-xl">{item.icon}</span>
               <span className="tracking-wide text-[11px]">{item.label}</span>
               
-              {/* FIXED: Changed from <div /> to <span /> (valid HTML inside a button) */}
               {isActive && (
                 <span className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
               )}
-            </motion.button>
+            </button>
           );
         })}
       </div>
