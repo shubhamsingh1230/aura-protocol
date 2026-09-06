@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link"; // ADD THIS
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame } from "lucide-react";
+import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera } from "lucide-react"; // ADD Camera
 
 export default function CheckInClient({ profile, initialLog, gesture, timeStats }: any) {
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
+  const [activeAction, setActiveAction] = useState<string | null>(null); // ADD THIS
   const supabase = createClient();
+  
+  // ... Keep all your existing mock data and togglePillar logic here ...
 
   // MOCK DATA for variables we haven't built backend logic for yet
   const consistencyScore = 82;
