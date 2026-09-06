@@ -18,12 +18,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 
-  /* Soft ambient color wash behind the glass panels — this is what makes
-     frosted cards look like they're refracting something, instead of
-     floating on flat grey. Pure CSS, no image assets. */
-  background-image: radial-gradient(circle at 12% 18%, rgba(47, 143, 224, 0.14), transparent 42%),
-    radial-gradient(circle at 88% 12%, rgba(31, 174, 100, 0.12), transparent 38%),
-    radial-gradient(circle at 50% 95%, rgba(201, 151, 31, 0.1), transparent 45%);
+  /* Ambient multi-color refractive wash behind the glass panels */
+  background-image: 
+    radial-gradient(circle at 12% 18%, rgba(47, 143, 224, 0.16), transparent 45%),
+    radial-gradient(circle at 88% 12%, rgba(31, 174, 100, 0.14), transparent 42%),
+    radial-gradient(circle at 50% 95%, rgba(201, 151, 31, 0.12), transparent 50%);
   background-attachment: fixed;
   background-color: #eef1f5;
 }
@@ -53,20 +52,18 @@ body {
 }
 
 /*
-  The frosted-glass surface used everywhere (cards, banners, nav bar).
-  Three things make it read as "glass" rather than just "a translucent
-  box": the blur+saturate on what's behind it, a soft drop shadow below
-  (depth), and a bright inset line along the top edge (a fake specular
-  highlight — light catching the top of a curved glass surface).
+  High-End Light Liquid Glass Surface
+  Deepened backdrop blur and saturation to make the background gradients 
+  vividly bend through the cards, with a sharp top specular highlight.
 */
-.glass {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+.liquid-glass, .glass {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   box-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 12px 40px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
 .tabular {
