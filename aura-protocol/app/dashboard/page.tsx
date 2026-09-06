@@ -52,7 +52,46 @@ export default async function DashboardPage() {
       .single();
     log = created ?? null;
   }
+// ... existing code fetching profile and log ...
 
+  // 1. Fetch today's time logs for the Time Engine
+  const { data: timeLogs } = await supabase
+    .from("time_logs")
+    .select("activity, duration_seconds")
+    .eq("user_id", user.id)
+    .eq("log_date", logDate);
+
+  // 2. Aggregate the seconds into formatted strings
+  let gymSeconds = 0;
+  let editSeconds = 0;
+
+  timeLogs?.forEach((timeLog) => {
+    if (timeLog.activity === 'gym_workout') gymSeconds += timeLog.duration_seconds;
+    if (timeLog.activity === 'editing_deep_work') editSeconds += timeLog.duration_seconds;
+  });
+
+  const formatTime = (totalSeconds: number) => {
+    if (totalSeconds === 0) return "0m";
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const timeStats = {
+    gym: formatTime(gymSeconds),
+    editing: formatTime(editSeconds)
+  };
+
+  // 3. Pass the new timeStats prop to the client component
+  return (
+    <CheckInClient 
+      profile={profile} 
+      initialLog={log!} 
+      gesture={resolvedGesture} 
+      timeStats={timeStats} 
+    />
+  );
+}
   return (
     <CheckInClient profile={profile} initialLog={log!} gesture={resolvedGesture} />
   );
