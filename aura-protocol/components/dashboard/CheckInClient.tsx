@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // ADD THIS
 import { createClient } from "@/lib/supabase/client";
 import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera, Upload } from "lucide-react";
-
 export default function CheckInClient({ profile, initialLog, gesture, analytics }: any) {
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
