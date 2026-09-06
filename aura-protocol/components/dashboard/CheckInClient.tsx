@@ -6,6 +6,60 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera, Upload } from "lucide-react";
 
+// Helper to compress image before upload
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Canvas is empty'));
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.7 // 70% quality compression
+        );
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+}
+
 export default function CheckInClient({ profile, initialLog, gesture, analytics }: any) {
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
@@ -27,7 +81,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     editingTime: "0m"
   };
 
-  // 1. Gym Verification Handler (Mandatory Photo)
   async function handleGymVerification() {
     if (loading || !log?.id) return;
     if (!gymFile) {
@@ -37,12 +90,13 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     setLoading(true);
 
     try {
-      const fileExt = gymFile.name.split('.').pop() || 'jpg';
+      const optimizedFile = await compressImage(gymFile);
+      const fileExt = 'jpg';
       const fileName = `${profile.id}_gym_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('daily-proofs')
-        .upload(fileName, gymFile);
+        .upload(fileName, optimizedFile);
 
       if (uploadError) {
         alert(`Storage Error: ${uploadError.message}`);
@@ -80,7 +134,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     }
   }
 
-  // 2. Deep Work Verification Handler (Mandatory Photo)
   async function handleWorkVerification() {
     if (loading || !log?.id) return;
     if (!workFile) {
@@ -90,12 +143,13 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     setLoading(true);
 
     try {
-      const fileExt = workFile.name.split('.').pop() || 'jpg';
+      const optimizedFile = await compressImage(workFile);
+      const fileExt = 'jpg';
       const fileName = `${profile.id}_work_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('daily-proofs')
-        .upload(fileName, workFile);
+        .upload(fileName, optimizedFile);
 
       if (uploadError) {
         alert(`Storage Error: ${uploadError.message}`);
@@ -133,7 +187,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     }
   }
 
-  // 3. Meal Logging Handler (Mandatory Photo)
   async function handleMealLogging() {
     if (loading || !log?.id) return;
     const currentMeals = log.meals_logged || 0;
@@ -147,12 +200,13 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     setLoading(true);
 
     try {
-      const fileExt = mealFile.name.split('.').pop() || 'jpg';
+      const optimizedFile = await compressImage(mealFile);
+      const fileExt = 'jpg';
       const fileName = `${profile.id}_meal_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('daily-proofs')
-        .upload(fileName, mealFile);
+        .upload(fileName, optimizedFile);
 
       if (uploadError) {
         alert(`Storage Error: ${uploadError.message}`);
@@ -200,7 +254,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-4">
-      
       <div className="mb-6 px-2">
         <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Summary</h1>
         <p className="text-zinc-500 text-sm font-medium">Command Center</p>
@@ -281,7 +334,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* ACTION ITEMS (All Require Live Camera Capture) */}
+      {/* ACTION ITEMS */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
@@ -311,7 +364,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                   </label>
                 </div>
                 <button onClick={handleGymVerification} disabled={loading || !gymFile} className={`w-full py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${gymFile ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-300 cursor-not-allowed'}`}>
-                  {loading ? "Uploading..." : "Upload & Verify Gym"}
+                  {loading ? "Compressing & Uploading..." : "Upload & Verify Gym"}
                 </button>
               </div>
             )}
@@ -386,7 +439,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
         </div>
       </div>
-
     </div>
   );
 }
