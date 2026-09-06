@@ -454,7 +454,3 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     </div>
   );
 }
-
-    </div>
-  );
-}
