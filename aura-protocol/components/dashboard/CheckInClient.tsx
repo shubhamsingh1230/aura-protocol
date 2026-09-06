@@ -10,14 +10,12 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   
-  // Separate file states for each action item
   const [gymFile, setGymFile] = useState<File | null>(null);
   const [workFile, setWorkFile] = useState<File | null>(null);
   const [mealFile, setMealFile] = useState<File | null>(null);
 
   const supabase = createClient();
 
-  // Destructure real analytics passed from server
   const { consistencyScore, percentile, workTrend, gymTrend, gymTime, editingTime } = analytics || {
     consistencyScore: 0,
     percentile: 50,
@@ -36,25 +34,33 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       let photoUrl = null;
 
       if (gymFile) {
-        const fileExt = gymFile.name.split('.').pop();
+        const fileExt = gymFile.name.split('.').pop() || 'jpg';
         const fileName = `${profile.id}_gym_${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('daily-proofs')
           .upload(fileName, gymFile);
 
-        if (!uploadError) {
-          const { data: publicUrlData } = supabase.storage
-            .from('daily-proofs')
-            .getPublicUrl(fileName);
-          photoUrl = publicUrlData.publicUrl;
+        if (uploadError) {
+          alert(`Storage Error: ${uploadError.message}`);
+          setLoading(false);
+          return;
+        }
 
-          await supabase.from('posts').insert({
-            user_id: profile.id,
-            image_url: photoUrl,
-            caption: "Gym session verified via Aura Protocol",
-            activity: "gym"
-          });
+        const { data: publicUrlData } = supabase.storage
+          .from('daily-proofs')
+          .getPublicUrl(fileName);
+        photoUrl = publicUrlData.publicUrl;
+
+        const { error: postError } = await supabase.from('posts').insert({
+          user_id: profile.id,
+          image_url: photoUrl,
+          caption: "Gym session verified via Aura Protocol",
+          activity: "gym"
+        });
+
+        if (postError) {
+          alert(`Post Error: ${postError.message}`);
         }
       }
 
@@ -68,8 +74,9 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       if (data && !error) setLog(data);
       setActiveAction(null);
       setGymFile(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gym upload failed:", err);
+      alert(`Unexpected error: ${err.message || err}`);
     } finally {
       setLoading(false);
     }
@@ -84,25 +91,33 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       let photoUrl = null;
 
       if (workFile) {
-        const fileExt = workFile.name.split('.').pop();
+        const fileExt = workFile.name.split('.').pop() || 'jpg';
         const fileName = `${profile.id}_work_${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('daily-proofs')
           .upload(fileName, workFile);
 
-        if (!uploadError) {
-          const { data: publicUrlData } = supabase.storage
-            .from('daily-proofs')
-            .getPublicUrl(fileName);
-          photoUrl = publicUrlData.publicUrl;
+        if (uploadError) {
+          alert(`Storage Error: ${uploadError.message}`);
+          setLoading(false);
+          return;
+        }
 
-          await supabase.from('posts').insert({
-            user_id: profile.id,
-            image_url: photoUrl,
-            caption: "Client deep work verified via Aura Protocol",
-            activity: "deep_work"
-          });
+        const { data: publicUrlData } = supabase.storage
+          .from('daily-proofs')
+          .getPublicUrl(fileName);
+        photoUrl = publicUrlData.publicUrl;
+
+        const { error: postError } = await supabase.from('posts').insert({
+          user_id: profile.id,
+          image_url: photoUrl,
+          caption: "Client deep work verified via Aura Protocol",
+          activity: "deep_work"
+        });
+
+        if (postError) {
+          alert(`Post Error: ${postError.message}`);
         }
       }
 
@@ -116,14 +131,15 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       if (data && !error) setLog(data);
       setActiveAction(null);
       setWorkFile(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Work upload failed:", err);
+      alert(`Unexpected error: ${err.message || err}`);
     } finally {
       setLoading(false);
     }
   }
 
-  // 3. Meal Logging Handler (Increments meals up to 5 with optional photo proof)
+  // 3. Meal Logging Handler
   async function handleMealLogging() {
     if (loading || !log?.id) return;
     setLoading(true);
@@ -135,26 +151,30 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       let photoUrl = null;
 
       if (mealFile) {
-        const fileExt = mealFile.name.split('.').pop();
+        const fileExt = mealFile.name.split('.').pop() || 'jpg';
         const fileName = `${profile.id}_meal_${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('daily-proofs')
           .upload(fileName, mealFile);
 
-        if (!uploadError) {
-          const { data: publicUrlData } = supabase.storage
-            .from('daily-proofs')
-            .getPublicUrl(fileName);
-          photoUrl = publicUrlData.publicUrl;
-
-          await supabase.from('posts').insert({
-            user_id: profile.id,
-            image_url: photoUrl,
-            caption: `Meal ${currentMeals + 1}/5 logged via Aura Protocol`,
-            activity: "meal"
-          });
+        if (uploadError) {
+          alert(`Storage Error: ${uploadError.message}`);
+          setLoading(false);
+          return;
         }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('daily-proofs')
+          .getPublicUrl(fileName);
+        photoUrl = publicUrlData.publicUrl;
+
+        await supabase.from('posts').insert({
+          user_id: profile.id,
+          image_url: photoUrl,
+          caption: `Meal ${currentMeals + 1}/5 logged via Aura Protocol`,
+          activity: "meal"
+        });
       }
 
       const newMealCount = currentMeals + 1;
@@ -168,14 +188,14 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       if (data && !error) setLog(data);
       if (newMealCount === 5) setActiveAction(null);
       setMealFile(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Meal log failed:", err);
+      alert(`Unexpected error: ${err.message || err}`);
     } finally {
       setLoading(false);
     }
   }
 
-  // Calculate Aura dynamically
   const dailyAura = ((log?.gym_done ? 1 : 0) + (log?.editing_done ? 1 : 0) + ((log?.meals_logged || 0) / 5)) * 25;
   const pillarsComplete = (log?.gym_done ? 1 : 0) + (log?.editing_done ? 1 : 0) + (log?.meals_logged === 5 ? 1 : 0);
   
@@ -213,10 +233,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 2. MIDDLE BENTO GRID */}
+      {/* 2. MIDDLE BENTO GRID (Targeted Routing: Work vs Gym History) */}
       <div className="grid grid-cols-2 gap-4">
         
-        <Link href="/history" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
+        <Link href="/history?tab=work" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-zinc-800 font-bold text-sm tracking-tight">Deep Work</p>
@@ -234,7 +254,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           </div>
         </Link>
 
-        <Link href="/history" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
+        <Link href="/history?tab=gym" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-zinc-800 font-bold text-sm tracking-tight">Training</p>
@@ -267,7 +287,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS (Accordions with Camera/File Upload) */}
+      {/* 3. LIVE LOGGING ACTIONS (Accordions with Forced Live Camera Capture) */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
@@ -298,9 +318,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                     Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong>
                   </p>
                   
+                  {/* FORCED LIVE CAMERA CAPTURE */}
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
-                    {gymFile ? gymFile.name : "Select Photo / Take Picture"}
+                    {gymFile ? "Live Photo Captured ✓" : "Open Camera"}
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -346,14 +367,15 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               <div className="px-3 pb-3 pt-1 space-y-3">
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
-                  <p className="text-xs text-zinc-500 font-medium">Upload proof of deep work / workspace</p>
+                  <p className="text-xs text-zinc-500 font-medium">Capture workspace live proof</p>
                   
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
-                    {workFile ? workFile.name : "Select Screenshot / Photo"}
+                    {workFile ? "Workspace Photo Captured ✓" : "Open Camera"}
                     <input 
                       type="file" 
                       accept="image/*" 
+                      capture="environment"
                       className="hidden" 
                       onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
                     />
@@ -366,8 +388,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                   </Link>
                   <button 
                     onClick={handleWorkVerification}
-                    disabled={loading}
-                    className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                    disabled={loading || !workFile}
+                    className={`flex-1 py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${
+                      workFile ? 'bg-blue-500 hover:bg-blue-600' : 'bg-zinc-300 cursor-not-allowed'
+                    }`}
                   >
                     {loading ? "Saving..." : "Upload & Complete"}
                   </button>
@@ -398,14 +422,15 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               <div className="px-3 pb-3 pt-1 space-y-3">
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
-                  <p className="text-xs text-zinc-500 font-medium">Upload meal photo (Optional)</p>
+                  <p className="text-xs text-zinc-500 font-medium">Capture meal photo (Optional)</p>
                   
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
-                    {mealFile ? mealFile.name : "Select Meal Photo"}
+                    {mealFile ? "Meal Photo Captured ✓" : "Open Camera"}
                     <input 
                       type="file" 
                       accept="image/*" 
+                      capture="environment"
                       className="hidden" 
                       onChange={(e) => setMealFile(e.target.files?.[0] || null)}
                     />
@@ -425,6 +450,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
         </div>
       </div>
+
+    </div>
+  );
+}
 
     </div>
   );
