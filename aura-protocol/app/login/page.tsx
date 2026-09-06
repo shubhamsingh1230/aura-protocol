@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +23,16 @@ export default function LoginPage() {
     setError(null);
 
     const supabase = createClient();
+    
+    // Pass full_name into auth options.data so the database trigger captures it automatically!
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { 
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          full_name: fullName.trim() || `Operator_${email.split('@')[0]}`,
+        }
+      },
     });
 
     setLoading(false);
@@ -69,16 +77,32 @@ export default function LoginPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
-              <input
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                suppressHydrationWarning
-                className="w-full liquid-glass rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-inner"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 px-1">Operator Display Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Shubham Singh Bargah"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  suppressHydrationWarning
+                  className="w-full liquid-glass rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-inner"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 px-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  suppressHydrationWarning
+                  className="w-full liquid-glass rounded-xl px-4 py-3.5 text-sm text-white placeholder:text-zinc-600 outline-none focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-inner"
+                />
+              </div>
             </div>
 
             {error && (
@@ -90,7 +114,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full relative group overflow-hidden rounded-xl bg-emerald-500 text-zinc-950 font-semibold py-3.5 px-4 text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:bg-emerald-400 active:scale-[0.99] disabled:opacity-50 transition-all duration-200"
+              className="w-full relative group overflow-hidden rounded-xl bg-emerald-500 text-zinc-950 font-semibold py-3.5 px-4 text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:bg-emerald-400 active:scale-[0.99] disabled:opacity-50 transition-all duration-200 mt-2"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
                 {loading ? "Authenticating..." : "Enter the Protocol"}
