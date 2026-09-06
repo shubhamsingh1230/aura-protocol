@@ -42,9 +42,9 @@ export default function BottomNav() {
               <span className="text-xl">{item.icon}</span>
               <span className="tracking-wide text-[11px]">{item.label}</span>
               
-              {/* Stable CSS active indicator (Hydration safe) */}
+              {/* FIXED: Changed from <div /> to <span /> */}
               {isActive && (
-                <div className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
+                <span className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
               )}
             </motion.button>
           );
