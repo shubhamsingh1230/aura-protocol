@@ -9,7 +9,12 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // Separate file states for each action item
+  const [gymFile, setGymFile] = useState<File | null>(null);
+  const [workFile, setWorkFile] = useState<File | null>(null);
+  const [mealFile, setMealFile] = useState<File | null>(null);
+
   const supabase = createClient();
 
   // Destructure real analytics passed from server
@@ -22,7 +27,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     editingTime: "0m"
   };
 
-  // LIVE Supabase Update Logic & Photo Upload to 'daily-proofs' bucket
+  // 1. Gym Verification Handler
   async function handleGymVerification() {
     if (loading || !log?.id) return;
     setLoading(true);
@@ -30,38 +35,29 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     try {
       let photoUrl = null;
 
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${profile.id}_${Date.now()}.${fileExt}`;
+      if (gymFile) {
+        const fileExt = gymFile.name.split('.').pop();
+        const fileName = `${profile.id}_gym_${Date.now()}.${fileExt}`;
         
-        // Upload to your actual Supabase storage bucket: 'daily-proofs'
         const { error: uploadError } = await supabase.storage
           .from('daily-proofs')
-          .upload(fileName, selectedFile);
+          .upload(fileName, gymFile);
 
-        if (uploadError) {
-          console.error("Storage upload error:", uploadError.message);
-        } else {
+        if (!uploadError) {
           const { data: publicUrlData } = supabase.storage
             .from('daily-proofs')
             .getPublicUrl(fileName);
           photoUrl = publicUrlData.publicUrl;
 
-          // Insert post into the feed table
-          const { error: postError } = await supabase.from('posts').insert({
+          await supabase.from('posts').insert({
             user_id: profile.id,
             image_url: photoUrl,
             caption: "Gym session verified via Aura Protocol",
             activity: "gym"
           });
-
-          if (postError) {
-            console.error("Post creation error:", postError.message);
-          }
         }
       }
 
-      // Update daily log to mark gym as done and update UI state
       const { data, error } = await supabase
         .from('daily_logs')
         .update({ gym_done: true })
@@ -69,43 +65,117 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .select()
         .single();
 
-      if (data && !error) {
-        setLog(data);
-      }
+      if (data && !error) setLog(data);
       setActiveAction(null);
-      setSelectedFile(null);
+      setGymFile(null);
     } catch (err) {
-      console.error("Verification process failed:", err);
+      console.error("Gym upload failed:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  async function togglePillar(field: string) {
+  // 2. Deep Work Verification Handler
+  async function handleWorkVerification() {
     if (loading || !log?.id) return;
     setLoading(true);
 
-    let newValue;
-    if (field === 'meals_logged') {
-      newValue = log.meals_logged >= 5 ? 0 : (log.meals_logged || 0) + 1;
-    } else {
-      newValue = !log[field];
-    }
+    try {
+      let photoUrl = null;
 
-    const { data, error } = await supabase
-      .from('daily_logs')
-      .update({ [field]: newValue })
-      .eq('id', log.id)
-      .select()
-      .single();
+      if (workFile) {
+        const fileExt = workFile.name.split('.').pop();
+        const fileName = `${profile.id}_work_${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('daily-proofs')
+          .upload(fileName, workFile);
 
-    if (data && !error) {
-      setLog(data);
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage
+            .from('daily-proofs')
+            .getPublicUrl(fileName);
+          photoUrl = publicUrlData.publicUrl;
+
+          await supabase.from('posts').insert({
+            user_id: profile.id,
+            image_url: photoUrl,
+            caption: "Client deep work verified via Aura Protocol",
+            activity: "deep_work"
+          });
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .update({ editing_done: true })
+        .eq('id', log.id)
+        .select()
+        .single();
+
+      if (data && !error) setLog(data);
+      setActiveAction(null);
+      setWorkFile(null);
+    } catch (err) {
+      console.error("Work upload failed:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  // Calculate Aura dynamically based on completed goals
+  // 3. Meal Logging Handler (Increments meals up to 5 with optional photo proof)
+  async function handleMealLogging() {
+    if (loading || !log?.id) return;
+    setLoading(true);
+
+    try {
+      const currentMeals = log.meals_logged || 0;
+      if (currentMeals >= 5) return;
+
+      let photoUrl = null;
+
+      if (mealFile) {
+        const fileExt = mealFile.name.split('.').pop();
+        const fileName = `${profile.id}_meal_${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('daily-proofs')
+          .upload(fileName, mealFile);
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage
+            .from('daily-proofs')
+            .getPublicUrl(fileName);
+          photoUrl = publicUrlData.publicUrl;
+
+          await supabase.from('posts').insert({
+            user_id: profile.id,
+            image_url: photoUrl,
+            caption: `Meal ${currentMeals + 1}/5 logged via Aura Protocol`,
+            activity: "meal"
+          });
+        }
+      }
+
+      const newMealCount = currentMeals + 1;
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .update({ meals_logged: newMealCount })
+        .eq('id', log.id)
+        .select()
+        .single();
+
+      if (data && !error) setLog(data);
+      if (newMealCount === 5) setActiveAction(null);
+      setMealFile(null);
+    } catch (err) {
+      console.error("Meal log failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Calculate Aura dynamically
   const dailyAura = ((log?.gym_done ? 1 : 0) + (log?.editing_done ? 1 : 0) + ((log?.meals_logged || 0) / 5)) * 25;
   const pillarsComplete = (log?.gym_done ? 1 : 0) + (log?.editing_done ? 1 : 0) + (log?.meals_logged === 5 ? 1 : 0);
   
@@ -143,7 +213,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 2. MIDDLE BENTO GRID (Links to Analytics / History page) */}
+      {/* 2. MIDDLE BENTO GRID */}
       <div className="grid grid-cols-2 gap-4">
         
         <Link href="/history" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
@@ -197,7 +267,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS (Accordions) */}
+      {/* 3. LIVE LOGGING ACTIONS (Accordions with Camera/File Upload) */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
@@ -230,22 +300,22 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                   
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
-                    {selectedFile ? selectedFile.name : "Select Photo / Take Picture"}
+                    {gymFile ? gymFile.name : "Select Photo / Take Picture"}
                     <input 
                       type="file" 
                       accept="image/*" 
                       capture="environment"
                       className="hidden" 
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      onChange={(e) => setGymFile(e.target.files?.[0] || null)}
                     />
                   </label>
                 </div>
 
                 <button 
                   onClick={handleGymVerification}
-                  disabled={loading || !selectedFile}
+                  disabled={loading || !gymFile}
                   className={`w-full py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${
-                    selectedFile ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-300 cursor-not-allowed'
+                    gymFile ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-300 cursor-not-allowed'
                   }`}
                 >
                   {loading ? "Uploading to Feed..." : "Upload & Verify Gym"}
@@ -266,24 +336,42 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-zinc-800">Client Deep Work</p>
-                  <p className="text-xs text-zinc-500 font-medium">{log?.editing_done ? "Complete" : "Pending"}</p>
+                  <p className="text-xs text-zinc-500 font-medium">{log?.editing_done ? "Complete" : "Pending Proof"}</p>
                 </div>
               </div>
               <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.editing_done ? 'text-blue-500' : 'text-zinc-300'}`} />
             </button>
 
             {activeAction === 'work' && !log?.editing_done && (
-              <div className="px-3 pb-3 pt-1 flex gap-2">
-                <Link href="/time" className="flex-1 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 text-center font-bold text-sm rounded-xl transition-all active:scale-95">
-                  Start Timer
-                </Link>
-                <button 
-                  onClick={() => { togglePillar('editing_done'); setActiveAction(null); }}
-                  disabled={loading}
-                  className="flex-1 py-2.5 bg-blue-500 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
-                >
-                  Mark Complete
-                </button>
+              <div className="px-3 pb-3 pt-1 space-y-3">
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
+                  <Camera className="w-6 h-6 text-zinc-400" />
+                  <p className="text-xs text-zinc-500 font-medium">Upload proof of deep work / workspace</p>
+                  
+                  <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                    <Upload className="w-3.5 h-3.5" />
+                    {workFile ? workFile.name : "Select Screenshot / Photo"}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+
+                <div className="flex gap-2">
+                  <Link href="/time" className="flex-1 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 text-center font-bold text-sm rounded-xl transition-all active:scale-95 flex items-center justify-center">
+                    Timer
+                  </Link>
+                  <button 
+                    onClick={handleWorkVerification}
+                    disabled={loading}
+                    className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                  >
+                    {loading ? "Saving..." : "Upload & Complete"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -307,13 +395,29 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             </button>
 
             {activeAction === 'meals' && (log?.meals_logged || 0) < 5 && (
-              <div className="px-3 pb-3 pt-1">
+              <div className="px-3 pb-3 pt-1 space-y-3">
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
+                  <Camera className="w-6 h-6 text-zinc-400" />
+                  <p className="text-xs text-zinc-500 font-medium">Upload meal photo (Optional)</p>
+                  
+                  <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                    <Upload className="w-3.5 h-3.5" />
+                    {mealFile ? mealFile.name : "Select Meal Photo"}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => setMealFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
+                </div>
+
                 <button 
-                  onClick={() => togglePillar('meals_logged')}
+                  onClick={handleMealLogging}
                   disabled={loading}
-                  className="w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                  className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
                 >
-                  Log Next Meal (+1)
+                  {loading ? "Logging..." : `Log Meal (${(log?.meals_logged || 0) + 1}/5) & Post`}
                 </button>
               </div>
             )}
