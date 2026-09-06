@@ -1,16 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@layer utilities {
-  .liquid-glass {
-    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.4)];
-  }
-  
-  .liquid-glass-active {
-    @apply bg-white/[0.08] backdrop-blur-2xl border border-white/[0.15] shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.5)];
-  }
+
+:root {
+  color-scheme: dark;
 }
-      @layer base {
+
+@layer base {
   body {
     background-color: #050507;
     background-image: 
@@ -18,6 +14,10 @@
       radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
     background-attachment: fixed;
     color: #f4f4f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100vh;
   }
 }
 
@@ -29,22 +29,15 @@
   .liquid-glass-active {
     @apply bg-white/[0.08] backdrop-blur-2xl border border-white/[0.15] shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.5)];
   }
-}
-:root {
-  color-scheme: dark;
-}
-
-html,
-body {
-  background: #000000;
-  color: #ffffff;
-  min-height: 100vh;
+  
+  /* Legacy alias so old code gracefully falls back to liquid glass instead of grey boxes */
+  .glass {
+    @apply liquid-glass;
+  }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -webkit-tap-highlight-color: transparent;
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 * {
@@ -61,28 +54,6 @@ body {
   border-radius: 999px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-}
-
-.glass {
-  background: rgba(28, 28, 30, 0.72);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
-/* visible focus ring, kept subtle to match OLED system */
 :focus-visible {
   outline: 2px solid #34c759;
   outline-offset: 2px;
