@@ -1,14 +1,69 @@
 "use client";
 
-import { Flame, Flag, CheckCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { Flame, Flag, CheckCircle, Loader2 } from "lucide-react";
 
-export default function FeedClient({ initialPosts, profiles, currentUserId }: any) {
+export default function FeedClient() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [flaggedPostIds, setFlaggedPostIds] = useState<set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true);
+      const { data: postsData } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url');
+
+      const { data: flagsData } = await supabase
+        .from('flags')
+        .select('post_id');
+
+      setPosts(postsData || []);
+      setProfiles(profilesData || []);
+      setFlaggedPostIds(new Set((flagsData || []).map((f: any) => f.post_id)));
+      setLoading(false);
+    }
+    loadData();
+  }, []);
+
+  async function handleFlagPost(postId: string, targetUserId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return alert("You must be logged in to flag a proof.");
+
+    if (flaggedPostIds.has(postId)) {
+      alert("This proof has already been flagged for review.");
+      return;
+    }
+
+    const { error } = await supabase.from('flags').insert({
+      post_id: postId,
+      flagged_by: user.id,
+      target_user_id: targetUserId,
+      reason: 'Community Flagged Proof'
+    });
+
+    if (error) {
+      alert(`Error flagging post: ${error.message}`);
+    } else {
+      setFlaggedPostIds(prev => new Set(prev).add(postId));
+      alert("Proof successfully flagged and sent to moderators for review.");
+    }
+  }
+
   const profileMap = new Map();
   (profiles || []).forEach((p: any) => profileMap.set(p.id, p));
 
-  // Group posts by user_id into unified 7-block operator cards
   const userPostsMap = new Map();
-  (initialPosts || []).forEach((post: any) => {
+  (posts || []).forEach((post: any) => {
     if (!userPostsMap.has(post.user_id)) {
       userPostsMap.set(post.user_id, {
         userId: post.user_id,
@@ -26,6 +81,15 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
 
   const feedCards = Array.from(userPostsMap.values());
 
+  if (loading) {
+    return (
+      <div className="pt-24 text-center flex flex-col items-center justify-center space-y-2">
+        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+        <p className="text-xs text-zinc-400 font-medium">Syncing Global Feed...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
       <div>
@@ -40,9 +104,12 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
             const name = profile.full_name || profile.username || `Operator_${card.userId.slice(0, 4)}`;
             const timeAgo = new Date(card.latestTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            const anyPost = card.gymPost || card.workPost || card.mealPosts[0];
+            const postId = anyPost?.id;
+            const isFlagged = postId && flaggedPostIds.has(postId);
+
             return (
               <div key={card.userId} className="liquid-glass rounded-3xl p-4 space-y-4 border border-white/80 shadow-sm">
-                {/* Header with Name & Flag button */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
@@ -54,21 +121,24 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
                     </div>
                   </div>
                   
-                  <button 
-                    onClick={() => alert("Post flagged for moderation review.")}
-                    className="p-2 rounded-xl bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
-                    title="Flag Proof"
-                  >
-                    <Flag className="w-3.5 h-3.5" />
-                  </button>
+                  {postId && (
+                    <button 
+                      onClick={() => handleFlagPost(postId, card.userId)}
+                      className={`p-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold ${
+                        isFlagged ? 'bg-red-500 text-white' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'
+                      }`}
+                      title="Flag Proof"
+                    >
+                      <Flag className="w-3.5 h-3.5" />
+                      {isFlagged && <span>Flagged</span>}
+                    </button>
+                  )}
                 </div>
 
-                {/* 7 BLOCKS GRID (1 Workout, 1 Grind, 5 Meals) */}
                 <div className="space-y-2">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">Daily 7-Block Compliance</p>
                   
                   <div className="grid grid-cols-4 gap-2">
-                    {/* Block 1: Workout */}
                     <div className={`aspect-square rounded-2xl p-2 flex flex-col justify-between border relative overflow-hidden ${card.gymPost ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-100 border-zinc-200/60'}`}>
                       <span className="text-[10px] font-bold text-zinc-600">Workout</span>
                       {card.gymPost?.image_url ? (
@@ -79,7 +149,6 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
                       {card.gymPost && <CheckCircle className="w-3 h-3 text-emerald-600 absolute bottom-1.5 right-1.5 z-10" />}
                     </div>
 
-                    {/* Block 2: Grind */}
                     <div className={`aspect-square rounded-2xl p-2 flex flex-col justify-between border relative overflow-hidden ${card.workPost ? 'bg-blue-500/10 border-blue-500/30' : 'bg-zinc-100 border-zinc-200/60'}`}>
                       <span className="text-[10px] font-bold text-zinc-600">Grind</span>
                       {card.workPost?.image_url ? (
@@ -90,7 +159,6 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
                       {card.workPost && <CheckCircle className="w-3 h-3 text-blue-600 absolute bottom-1.5 right-1.5 z-10" />}
                     </div>
 
-                    {/* Blocks 3-7: Meals (1 to 5) */}
                     {[0, 1, 2, 3, 4].map((mealIdx) => {
                       const meal = card.mealPosts[mealIdx];
                       return (
