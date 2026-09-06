@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import type { Database } from '@/types/database';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -8,36 +9,38 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/feed';
 
   if (code) {
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     
-    const supabase = createServerClient(
+    // 1. Create the redirect response target first
+    const response = NextResponse.redirect(`${origin}${next}`);
+
+    // 2. Instantiate Supabase client bound directly to the response cookies
+    const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          getAll() {
-            return cookieStore.getAll();
+          get(name: string) {
+            return cookieStore.get(name)?.value;
           },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Handled gracefully for route handler execution context
-            }
+          set(name: string, value: string, options: CookieOptions) {
+            response.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options: CookieOptions) {
+            response.cookies.set({ name, value: '', ...options });
           },
         },
       }
     );
 
+    // 3. Exchange code for session and attach tokens to response headers
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return response; // Successfully sends cookies to browser and redirects to /feed!
     }
   }
 
-  // Fallback redirect to login if authorization code is missing or invalid
+  // Fallback if code is missing or invalid
   return NextResponse.redirect(`${origin}/login?error=Authentication failed. Please try again.`);
 }
