@@ -22,7 +22,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     editingTime: "0m"
   };
 
-  // LIVE Supabase Update Logic & Photo Upload
+  // LIVE Supabase Update Logic & Photo Upload to 'daily-proofs' bucket
   async function handleGymVerification() {
     if (loading || !log?.id) return;
     setLoading(true);
@@ -30,30 +30,38 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     try {
       let photoUrl = null;
 
-      // 1. Upload photo to Supabase Storage if selected
-    if (selectedFile) {
+      if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${profile.id}_${Date.now()}.${fileExt}`;
+        
+        // Upload to your actual Supabase storage bucket: 'daily-proofs'
         const { error: uploadError } = await supabase.storage
-          .from('daily-proofs') // <-- CHANGE THIS FROM 'feed-photos' TO 'daily-proofs'
+          .from('daily-proofs')
           .upload(fileName, selectedFile);
 
-        if (!uploadError) {
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError.message);
+        } else {
           const { data: publicUrlData } = supabase.storage
-            .from('daily-proofs') // <-- CHANGE THIS HERE TOO
+            .from('daily-proofs')
             .getPublicUrl(fileName);
           photoUrl = publicUrlData.publicUrl;
 
-          await supabase.from('posts').insert({
+          // Insert post into the feed table
+          const { error: postError } = await supabase.from('posts').insert({
             user_id: profile.id,
             image_url: photoUrl,
             caption: "Gym session verified via Aura Protocol",
             activity: "gym"
           });
+
+          if (postError) {
+            console.error("Post creation error:", postError.message);
+          }
         }
       }
 
-      // 3. Update daily log to mark gym as done
+      // Update daily log to mark gym as done and update UI state
       const { data, error } = await supabase
         .from('daily_logs')
         .update({ gym_done: true })
@@ -67,7 +75,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       setActiveAction(null);
       setSelectedFile(null);
     } catch (err) {
-      console.error("Upload failed:", err);
+      console.error("Verification process failed:", err);
     } finally {
       setLoading(false);
     }
@@ -97,7 +105,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     setLoading(false);
   }
 
-  // Calculate Aura dynamically
+  // Calculate Aura dynamically based on completed goals
   const dailyAura = ((log?.gym_done ? 1 : 0) + (log?.editing_done ? 1 : 0) + ((log?.meals_logged || 0) / 5)) * 25;
   const pillarsComplete = (log?.gym_done ? 1 : 0) + (log?.editing_done ? 1 : 0) + (log?.meals_logged === 5 ? 1 : 0);
   
@@ -135,7 +143,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 2. MIDDLE BENTO GRID (Links to History/Analytics page) */}
+      {/* 2. MIDDLE BENTO GRID (Links to Analytics / History page) */}
       <div className="grid grid-cols-2 gap-4">
         
         <Link href="/history" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
@@ -189,7 +197,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS (Accordions with Camera/File Upload) */}
+      {/* 3. LIVE LOGGING ACTIONS (Accordions) */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
@@ -220,7 +228,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                     Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong>
                   </p>
                   
-                  {/* File/Camera Input */}
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
                     {selectedFile ? selectedFile.name : "Select Photo / Take Picture"}
