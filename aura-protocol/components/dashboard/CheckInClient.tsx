@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link"; // ADD THIS
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera } from "lucide-react"; // ADD Camera
+import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera } from "lucide-react";
 
 export default function CheckInClient({ profile, initialLog, gesture, timeStats }: any) {
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
-  const [activeAction, setActiveAction] = useState<string | null>(null); // ADD THIS
+  const [activeAction, setActiveAction] = useState<string | null>(null);
   const supabase = createClient();
-  
-  // ... Keep all your existing mock data and togglePillar logic here ...
 
   // MOCK DATA for variables we haven't built backend logic for yet
   const consistencyScore = 82;
@@ -84,7 +82,8 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
 
       {/* 2. MIDDLE BENTO GRID */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square">
+        
+        <Link href="/time" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-zinc-800 font-bold text-sm tracking-tight">Deep Work</p>
@@ -100,9 +99,9 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
               </div>
             ))}
           </div>
-        </div>
+        </Link>
 
-        <div className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square">
+        <Link href="/time" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-zinc-800 font-bold text-sm tracking-tight">Training</p>
@@ -118,7 +117,7 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
               </div>
             ))}
           </div>
-        </div>
+        </Link>
 
         <div className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
@@ -135,61 +134,110 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS */}
+      {/* 3. LIVE LOGGING ACTIONS (Accordions) */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
-        <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1">
+        <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
           
-          <button 
-            onClick={() => togglePillar('gym_done')}
-            disabled={loading}
-            className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.4] hover:bg-white/[0.6] transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-full">
-                <Dumbbell className="w-4 h-4" />
+          {/* Gym Verification Accordion */}
+          <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'gym' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
+            <button 
+              onClick={() => setActiveAction(activeAction === 'gym' ? null : 'gym')}
+              className="flex items-center justify-between p-3 w-full"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-full">
+                  <Dumbbell className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-zinc-800">Verify Gym</p>
+                  <p className="text-xs text-zinc-500 font-medium">{log?.gym_done ? "Complete" : "Pending Photo"}</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-sm font-bold text-zinc-800">Verify Gym</p>
-                <p className="text-xs text-zinc-500 font-medium">{log?.gym_done ? "Complete" : "Pending Photo"}</p>
+              <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.gym_done ? 'text-emerald-500' : 'text-zinc-300'}`} />
+            </button>
+            
+            {activeAction === 'gym' && !log?.gym_done && (
+              <div className="px-3 pb-3 pt-1">
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2 mb-2">
+                  <Camera className="w-6 h-6 text-zinc-400" />
+                  <p className="text-xs text-zinc-500 font-medium">Show today's gesture: <strong className="text-zinc-900">{gesture || "Peace Sign"}</strong></p>
+                </div>
+                <button 
+                  onClick={() => { togglePillar('gym_done'); setActiveAction(null); }}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                >
+                  {loading ? "Uploading..." : "Upload to Feed & Verify"}
+                </button>
               </div>
-            </div>
-            <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.gym_done ? 'text-emerald-500' : 'text-zinc-300'}`} />
-          </button>
+            )}
+          </div>
 
-          <button 
-            onClick={() => togglePillar('editing_done')}
-            disabled={loading}
-            className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.4] hover:bg-white/[0.6] transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-full">
-                <MonitorPlay className="w-4 h-4" />
+          {/* Deep Work Accordion */}
+          <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'work' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
+            <button 
+              onClick={() => setActiveAction(activeAction === 'work' ? null : 'work')}
+              className="flex items-center justify-between p-3 w-full"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 text-blue-600 rounded-full">
+                  <MonitorPlay className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-zinc-800">Client Deep Work</p>
+                  <p className="text-xs text-zinc-500 font-medium">{log?.editing_done ? "Complete" : "Pending"}</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-sm font-bold text-zinc-800">Client Deep Work</p>
-                <p className="text-xs text-zinc-500 font-medium">{log?.editing_done ? "Complete" : "Pending"}</p>
-              </div>
-            </div>
-            <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.editing_done ? 'text-blue-500' : 'text-zinc-300'}`} />
-          </button>
+              <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.editing_done ? 'text-blue-500' : 'text-zinc-300'}`} />
+            </button>
 
-          <button 
-            onClick={() => togglePillar('meals_logged')}
-            disabled={loading}
-            className="flex items-center justify-between p-3 rounded-2xl bg-white/[0.4] hover:bg-white/[0.6] transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-500/10 text-orange-600 rounded-full">
-                <Utensils className="w-4 h-4" />
+            {activeAction === 'work' && !log?.editing_done && (
+              <div className="px-3 pb-3 pt-1 flex gap-2">
+                <Link href="/time" className="flex-1 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 text-center font-bold text-sm rounded-xl transition-all active:scale-95">
+                  Start Timer
+                </Link>
+                <button 
+                  onClick={() => { togglePillar('editing_done'); setActiveAction(null); }}
+                  disabled={loading}
+                  className="flex-1 py-2.5 bg-blue-500 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                >
+                  Mark Complete
+                </button>
               </div>
-              <div className="text-left">
-                <p className="text-sm font-bold text-zinc-800">Log Meals</p>
-                <p className="text-xs text-zinc-500 font-medium">{log?.meals_logged || 0}/5 Complete</p>
+            )}
+          </div>
+
+          {/* Meals Accordion */}
+          <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'meals' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
+            <button 
+              onClick={() => setActiveAction(activeAction === 'meals' ? null : 'meals')}
+              className="flex items-center justify-between p-3 w-full"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-full">
+                  <Utensils className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-zinc-800">Log Meals</p>
+                  <p className="text-xs text-zinc-500 font-medium">{log?.meals_logged || 0}/5 Complete</p>
+                </div>
               </div>
-            </div>
-            <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.meals_logged === 5 ? 'text-orange-500' : 'text-zinc-300'}`} />
-          </button>
+              <CheckCircle2 className={`w-5 h-5 transition-colors ${log?.meals_logged === 5 ? 'text-orange-500' : 'text-zinc-300'}`} />
+            </button>
+
+            {activeAction === 'meals' && (log?.meals_logged || 0) < 5 && (
+              <div className="px-3 pb-3 pt-1">
+                <button 
+                  onClick={() => togglePillar('meals_logged')}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-orange-500 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                >
+                  Log Next Meal (+1)
+                </button>
+              </div>
+            )}
+          </div>
 
         </div>
       </div>
