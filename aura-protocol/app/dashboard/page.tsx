@@ -30,7 +30,7 @@ export default async function DashboardPage() {
     .eq("gesture_date", logDate)
     .maybeSingle();
 
-  const resolvedGesture = gesture ?? { gesture_label: "Peace Sign", gesture_emoji: "✌️" };
+ const resolvedGesture = gesture ?? { gesture_label: "Peace Sign" };
 
   let { data: log } = await supabase
     .from("daily_logs")
