@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion } from "framer-motion";
 
@@ -9,6 +9,14 @@ export default function LoginPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 1. Add a mounted state
+  const [mounted, setMounted] = useState(false);
+
+  // 2. Safely trigger the render only after the browser is fully ready
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,6 +35,11 @@ export default function LoginPage() {
       return;
     }
     setSent(true);
+  }
+
+  // 3. Return a safe, empty background during the server-render phase
+  if (!mounted) {
+    return <div className="min-h-screen bg-canvas" />;
   }
 
   return (
@@ -55,13 +68,15 @@ export default function LoginPage() {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="space-y-3 relative">
             <input
               type="email"
               required
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              // Added suppressHydrationWarning to keep extensions from breaking the input
+              suppressHydrationWarning 
               className="w-full bg-card border border-border rounded-card px-4 py-3.5 text-[15px] placeholder:text-grey-flat outline-none focus:border-mint"
             />
             {error && <p className="text-crimson text-sm">{error}</p>}
