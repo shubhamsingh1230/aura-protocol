@@ -2,14 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // ADD THIS
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera, Upload } from "lucide-react";
+
 export default function CheckInClient({ profile, initialLog, gesture, analytics }: any) {
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const router = useRouter();
+  
   const [gymFile, setGymFile] = useState<File | null>(null);
   const [workFile, setWorkFile] = useState<File | null>(null);
   const [mealFile, setMealFile] = useState<File | null>(null);
@@ -72,6 +74,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .single();
 
       if (data && !error) setLog(data);
+      router.refresh(); // Forces Next.js to refresh server state & update feeds/points
       setActiveAction(null);
       setGymFile(null);
     } catch (err: any) {
@@ -129,6 +132,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .single();
 
       if (data && !error) setLog(data);
+      router.refresh(); // Forces Next.js to refresh server state & update feeds/points
       setActiveAction(null);
       setWorkFile(null);
     } catch (err: any) {
@@ -186,6 +190,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .single();
 
       if (data && !error) setLog(data);
+      router.refresh(); // Forces Next.js to refresh server state & update feeds/points
       if (newMealCount === 5) setActiveAction(null);
       setMealFile(null);
     } catch (err: any) {
@@ -233,7 +238,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 2. MIDDLE BENTO GRID (Targeted Routing: Work vs Gym History) */}
+      {/* 2. MIDDLE BENTO GRID */}
       <div className="grid grid-cols-2 gap-4">
         
         <Link href="/history?tab=work" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
@@ -287,7 +292,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS (Accordions with Forced Live Camera Capture) */}
+      {/* 3. LIVE LOGGING ACTIONS */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
@@ -318,7 +323,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                     Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong>
                   </p>
                   
-                  {/* FORCED LIVE CAMERA CAPTURE */}
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
                     {gymFile ? "Live Photo Captured ✓" : "Open Camera"}
