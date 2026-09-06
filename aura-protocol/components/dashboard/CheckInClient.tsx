@@ -9,7 +9,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
-  
+  const router = useRouter();
   const [gymFile, setGymFile] = useState<File | null>(null);
   const [workFile, setWorkFile] = useState<File | null>(null);
   const [mealFile, setMealFile] = useState<File | null>(null);
