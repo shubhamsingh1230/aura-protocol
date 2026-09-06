@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { recordTimeSession } from '@/app/actions/time';
 
 export function useTimeTracker(activityKey: string) {
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // 1. Initialize timer state from LocalStorage on mount
   useEffect(() => {
     const storedStart = localStorage.getItem(`aura_timer_start_${activityKey}`);
     const storedAccumulated = localStorage.getItem(`aura_timer_accumulated_${activityKey}`);
-
     let initialElapsed = storedAccumulated ? parseInt(storedAccumulated, 10) : 0;
 
     if (storedStart) {
@@ -19,19 +18,15 @@ export function useTimeTracker(activityKey: string) {
       initialElapsed += diffSeconds;
       setIsRunning(true);
     }
-
     setElapsedSeconds(initialElapsed);
   }, [activityKey]);
 
-  // 2. The live ticker (only runs when active)
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isRunning) {
       interval = setInterval(() => {
-        // We calculate off the original timestamp to prevent drift from JS thread pausing
         const storedStart = localStorage.getItem(`aura_timer_start_${activityKey}`);
         const storedAccumulated = localStorage.getItem(`aura_timer_accumulated_${activityKey}`);
-        
         const baseAccumulated = storedAccumulated ? parseInt(storedAccumulated, 10) : 0;
         
         if (storedStart) {
@@ -62,11 +57,15 @@ export function useTimeTracker(activityKey: string) {
     const currentAccumulated = localStorage.getItem(`aura_timer_accumulated_${activityKey}`);
     const newTotal = (currentAccumulated ? parseInt(currentAccumulated, 10) : 0) + sessionElapsed;
 
-    // Save total accumulated time, clear the active start timestamp
+    // Save total accumulated time, clear active start
     localStorage.setItem(`aura_timer_accumulated_${activityKey}`, newTotal.toString());
     localStorage.removeItem(`aura_timer_start_${activityKey}`);
-    
     setIsRunning(false);
+    
+    // FIRE SERVER ACTION: Silently push the session duration to Supabase in the background
+    if (sessionElapsed >= 5) {
+      recordTimeSession(activityKey, sessionElapsed);
+    }
   };
 
   const resetTimer = () => {
@@ -76,7 +75,6 @@ export function useTimeTracker(activityKey: string) {
     setIsRunning(false);
   };
 
-  // Format into HH:MM:SS
   const formattedTime = [
     Math.floor(elapsedSeconds / 3600),
     Math.floor((elapsedSeconds % 3600) / 60),
@@ -85,12 +83,5 @@ export function useTimeTracker(activityKey: string) {
     .map((val) => val.toString().padStart(2, '0'))
     .join(':');
 
-  return { 
-    isRunning, 
-    elapsedSeconds, 
-    formattedTime, 
-    startTimer, 
-    stopTimer, 
-    resetTimer 
-  };
+  return { isRunning, elapsedSeconds, formattedTime, startTimer, stopTimer, resetTimer };
 }
