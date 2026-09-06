@@ -140,6 +140,7 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
           
           {/* Gym Verification Accordion */}
+         {/* Gym Verification Accordion */}
           <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'gym' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
             <button 
               onClick={() => setActiveAction(activeAction === 'gym' ? null : 'gym')}
@@ -161,7 +162,9 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
               <div className="px-3 pb-3 pt-1">
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2 mb-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
-                  <p className="text-xs text-zinc-500 font-medium">Show today's gesture: <strong className="text-zinc-900">{gesture || "Peace Sign"}</strong></p>
+                  <p className="text-xs text-zinc-500 font-medium">
+                    Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong>
+                  </p>
                 </div>
                 <button 
                   onClick={() => { togglePillar('gym_done'); setActiveAction(null); }}
