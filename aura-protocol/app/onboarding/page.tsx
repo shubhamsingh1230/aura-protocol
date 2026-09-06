@@ -105,7 +105,7 @@ export default function OnboardingPage() {
               {CONTRACT_TERMS.map((term, i) => (
                 <div key={i} className="glass rounded-card p-4 flex gap-3">
                   <span className="text-mint mt-0.5">✓</span>
-                  <p className="text-[14px] leading-relaxed text-white/90">{term}</p>
+                  <p className="text-[14px] leading-relaxed text-ink/80">{term}</p>
                 </div>
               ))}
             </div>
@@ -236,7 +236,7 @@ export default function OnboardingPage() {
             <p className="text-grey-text text-[15px] mb-3 max-w-xs">
               This is your skin in the game for the season.
             </p>
-            <div className="glass rounded-card p-4 mb-10 text-left text-[13px] leading-relaxed text-white/80 max-w-xs">
+            <div className="glass rounded-card p-4 mb-10 text-left text-[13px] leading-relaxed text-ink/70 max-w-xs">
               <p className="mb-2">
                 <span className="text-mint font-medium">≥85% consistency</span> (26/30 days) —
                 your ₹{STAKE_INR} comes straight back.
