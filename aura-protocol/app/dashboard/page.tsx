@@ -54,7 +54,7 @@ export default async function DashboardPage() {
   }
 // ... existing code fetching profile and log ...
 
-  // 1. Fetch today's time logs for the Time Engine
+ // 1. Fetch today's time logs for the Time Engine
   const { data: timeLogs } = await supabase
     .from("time_logs")
     .select("activity, duration_seconds")
@@ -90,9 +90,5 @@ export default async function DashboardPage() {
       gesture={resolvedGesture} 
       timeStats={timeStats} 
     />
-  );
-}
-  return (
-    <CheckInClient profile={profile} initialLog={log!} gesture={resolvedGesture} />
   );
 }
