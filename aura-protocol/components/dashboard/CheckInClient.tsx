@@ -27,44 +27,39 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     editingTime: "0m"
   };
 
-  // 1. Gym Verification Handler
+  // 1. Gym Verification Handler (Mandatory Photo)
   async function handleGymVerification() {
     if (loading || !log?.id) return;
+    if (!gymFile) {
+      alert("Photo proof is required for gym verification!");
+      return;
+    }
     setLoading(true);
 
     try {
-      let photoUrl = null;
+      const fileExt = gymFile.name.split('.').pop() || 'jpg';
+      const fileName = `${profile.id}_gym_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('daily-proofs')
+        .upload(fileName, gymFile);
 
-      if (gymFile) {
-        const fileExt = gymFile.name.split('.').pop() || 'jpg';
-        const fileName = `${profile.id}_gym_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('daily-proofs')
-          .upload(fileName, gymFile);
-
-        if (uploadError) {
-          alert(`Storage Error: ${uploadError.message}`);
-          setLoading(false);
-          return;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('daily-proofs')
-          .getPublicUrl(fileName);
-        photoUrl = publicUrlData.publicUrl;
-
-        const { error: postError } = await supabase.from('posts').insert({
-          user_id: profile.id,
-          image_url: photoUrl,
-          caption: "Gym session verified via Aura Protocol",
-          activity: "gym"
-        });
-
-        if (postError) {
-          alert(`Post Error: ${postError.message}`);
-        }
+      if (uploadError) {
+        alert(`Storage Error: ${uploadError.message}`);
+        setLoading(false);
+        return;
       }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('daily-proofs')
+        .getPublicUrl(fileName);
+      
+      await supabase.from('posts').insert({
+        user_id: profile.id,
+        image_url: publicUrlData.publicUrl,
+        caption: "Gym session verified via Aura Protocol",
+        activity: "gym"
+      });
 
       const { error } = await supabase
         .from('daily_logs')
@@ -85,44 +80,39 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     }
   }
 
-  // 2. Deep Work Verification Handler
+  // 2. Deep Work Verification Handler (Mandatory Photo)
   async function handleWorkVerification() {
     if (loading || !log?.id) return;
+    if (!workFile) {
+      alert("Photo proof is required for deep work verification!");
+      return;
+    }
     setLoading(true);
 
     try {
-      let photoUrl = null;
+      const fileExt = workFile.name.split('.').pop() || 'jpg';
+      const fileName = `${profile.id}_work_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('daily-proofs')
+        .upload(fileName, workFile);
 
-      if (workFile) {
-        const fileExt = workFile.name.split('.').pop() || 'jpg';
-        const fileName = `${profile.id}_work_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('daily-proofs')
-          .upload(fileName, workFile);
-
-        if (uploadError) {
-          alert(`Storage Error: ${uploadError.message}`);
-          setLoading(false);
-          return;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('daily-proofs')
-          .getPublicUrl(fileName);
-        photoUrl = publicUrlData.publicUrl;
-
-        const { error: postError } = await supabase.from('posts').insert({
-          user_id: profile.id,
-          image_url: photoUrl,
-          caption: "Client deep work verified via Aura Protocol",
-          activity: "deep_work"
-        });
-
-        if (postError) {
-          alert(`Post Error: ${postError.message}`);
-        }
+      if (uploadError) {
+        alert(`Storage Error: ${uploadError.message}`);
+        setLoading(false);
+        return;
       }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('daily-proofs')
+        .getPublicUrl(fileName);
+
+      await supabase.from('posts').insert({
+        user_id: profile.id,
+        image_url: publicUrlData.publicUrl,
+        caption: "Client deep work verified via Aura Protocol",
+        activity: "deep_work"
+      });
 
       const { error } = await supabase
         .from('daily_logs')
@@ -143,43 +133,43 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     }
   }
 
-  // 3. Meal Logging Handler
+  // 3. Meal Logging Handler (Mandatory Photo)
   async function handleMealLogging() {
     if (loading || !log?.id) return;
+    const currentMeals = log.meals_logged || 0;
+    if (currentMeals >= 5) return;
+
+    if (!mealFile) {
+      alert("Photo proof is required to log a meal!");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const currentMeals = log.meals_logged || 0;
-      if (currentMeals >= 5) return;
+      const fileExt = mealFile.name.split('.').pop() || 'jpg';
+      const fileName = `${profile.id}_meal_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('daily-proofs')
+        .upload(fileName, mealFile);
 
-      let photoUrl = null;
-
-      if (mealFile) {
-        const fileExt = mealFile.name.split('.').pop() || 'jpg';
-        const fileName = `${profile.id}_meal_${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('daily-proofs')
-          .upload(fileName, mealFile);
-
-        if (uploadError) {
-          alert(`Storage Error: ${uploadError.message}`);
-          setLoading(false);
-          return;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('daily-proofs')
-          .getPublicUrl(fileName);
-        photoUrl = publicUrlData.publicUrl;
-
-        await supabase.from('posts').insert({
-          user_id: profile.id,
-          image_url: photoUrl,
-          caption: `Meal ${currentMeals + 1}/5 logged via Aura Protocol`,
-          activity: "meal"
-        });
+      if (uploadError) {
+        alert(`Storage Error: ${uploadError.message}`);
+        setLoading(false);
+        return;
       }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('daily-proofs')
+        .getPublicUrl(fileName);
+
+      await supabase.from('posts').insert({
+        user_id: profile.id,
+        image_url: publicUrlData.publicUrl,
+        caption: `Meal ${currentMeals + 1}/5 logged via Aura Protocol`,
+        activity: "meal"
+      });
 
       const newMealCount = currentMeals + 1;
       const { error } = await supabase
@@ -216,7 +206,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         <p className="text-zinc-500 text-sm font-medium">Command Center</p>
       </div>
 
-      {/* 1. TOP CARD: The Gauntlet Activity Ring */}
+      {/* TOP CARD */}
       <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between">
         <div className="flex-1">
           <p className="text-zinc-800 font-bold text-lg mb-1 tracking-tight">Daily Gauntlet</p>
@@ -238,9 +228,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 2. MIDDLE BENTO GRID */}
+      {/* BENTO GRID */}
       <div className="grid grid-cols-2 gap-4">
-        
         <Link href="/history?tab=work" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -292,21 +281,16 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS */}
+      {/* ACTION ITEMS (All Require Live Camera Capture) */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
           
-          {/* Gym Verification Accordion */}
+          {/* Gym Verification */}
           <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'gym' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
-            <button 
-              onClick={() => setActiveAction(activeAction === 'gym' ? null : 'gym')}
-              className="flex items-center justify-between p-3 w-full"
-            >
+            <button onClick={() => setActiveAction(activeAction === 'gym' ? null : 'gym')} className="flex items-center justify-between p-3 w-full">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-full">
-                  <Dumbbell className="w-4 h-4" />
-                </div>
+                <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-full"><Dumbbell className="w-4 h-4" /></div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-zinc-800">Verify Gym</p>
                   <p className="text-xs text-zinc-500 font-medium">{log?.gym_done ? "Complete" : "Pending Photo"}</p>
@@ -319,46 +303,25 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               <div className="px-3 pb-3 pt-1 space-y-3">
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
-                  <p className="text-xs text-zinc-500 font-medium">
-                    Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong>
-                  </p>
-                  
+                  <p className="text-xs text-zinc-500 font-medium">Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong></p>
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
                     {gymFile ? "Live Photo Captured ✓" : "Open Camera"}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      className="hidden" 
-                      onChange={(e) => setGymFile(e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setGymFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
-
-                <button 
-                  onClick={handleGymVerification}
-                  disabled={loading || !gymFile}
-                  className={`w-full py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${
-                    gymFile ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-300 cursor-not-allowed'
-                  }`}
-                >
-                  {loading ? "Uploading to Feed..." : "Upload & Verify Gym"}
+                <button onClick={handleGymVerification} disabled={loading || !gymFile} className={`w-full py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${gymFile ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-300 cursor-not-allowed'}`}>
+                  {loading ? "Uploading..." : "Upload & Verify Gym"}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Deep Work Accordion */}
+          {/* Deep Work Verification */}
           <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'work' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
-            <button 
-              onClick={() => setActiveAction(activeAction === 'work' ? null : 'work')}
-              className="flex items-center justify-between p-3 w-full"
-            >
+            <button onClick={() => setActiveAction(activeAction === 'work' ? null : 'work')} className="flex items-center justify-between p-3 w-full">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 text-blue-600 rounded-full">
-                  <MonitorPlay className="w-4 h-4" />
-                </div>
+                <div className="p-2 bg-blue-500/10 text-blue-600 rounded-full"><MonitorPlay className="w-4 h-4" /></div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-zinc-800">Client Deep Work</p>
                   <p className="text-xs text-zinc-500 font-medium">{log?.editing_done ? "Complete" : "Pending Proof"}</p>
@@ -371,32 +334,17 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               <div className="px-3 pb-3 pt-1 space-y-3">
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
-                  <p className="text-xs text-zinc-500 font-medium">Capture workspace live proof</p>
-                  
+                  <p className="text-xs text-zinc-500 font-medium">Capture workspace live proof (Mandatory)</p>
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
                     {workFile ? "Workspace Photo Captured ✓" : "Open Camera"}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      className="hidden" 
-                      onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setWorkFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
 
                 <div className="flex gap-2">
-                  <Link href="/time" className="flex-1 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 text-center font-bold text-sm rounded-xl transition-all active:scale-95 flex items-center justify-center">
-                    Timer
-                  </Link>
-                  <button 
-                    onClick={handleWorkVerification}
-                    disabled={loading || !workFile}
-                    className={`flex-1 py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${
-                      workFile ? 'bg-blue-500 hover:bg-blue-600' : 'bg-zinc-300 cursor-not-allowed'
-                    }`}
-                  >
+                  <Link href="/time" className="flex-1 py-2.5 bg-blue-50 text-blue-600 border border-blue-200 text-center font-bold text-sm rounded-xl transition-all active:scale-95 flex items-center justify-center">Timer</Link>
+                  <button onClick={handleWorkVerification} disabled={loading || !workFile} className={`flex-1 py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${workFile ? 'bg-blue-500 hover:bg-blue-600' : 'bg-zinc-300 cursor-not-allowed'}`}>
                     {loading ? "Saving..." : "Upload & Complete"}
                   </button>
                 </div>
@@ -404,16 +352,11 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             )}
           </div>
 
-          {/* Meals Accordion */}
+          {/* Meals Logging */}
           <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'meals' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
-            <button 
-              onClick={() => setActiveAction(activeAction === 'meals' ? null : 'meals')}
-              className="flex items-center justify-between p-3 w-full"
-            >
+            <button onClick={() => setActiveAction(activeAction === 'meals' ? null : 'meals')} className="flex items-center justify-between p-3 w-full">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-full">
-                  <Utensils className="w-4 h-4" />
-                </div>
+                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-full"><Utensils className="w-4 h-4" /></div>
                 <div className="text-left">
                   <p className="text-sm font-bold text-zinc-800">Log Meals</p>
                   <p className="text-xs text-zinc-500 font-medium">{log?.meals_logged || 0}/5 Complete</p>
@@ -426,26 +369,15 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               <div className="px-3 pb-3 pt-1 space-y-3">
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
-                  <p className="text-xs text-zinc-500 font-medium">Capture meal photo (Optional)</p>
-                  
+                  <p className="text-xs text-zinc-500 font-medium">Capture meal photo (Mandatory proof)</p>
                   <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
                     <Upload className="w-3.5 h-3.5" />
                     {mealFile ? "Meal Photo Captured ✓" : "Open Camera"}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      capture="environment"
-                      className="hidden" 
-                      onChange={(e) => setMealFile(e.target.files?.[0] || null)}
-                    />
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setMealFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
 
-                <button 
-                  onClick={handleMealLogging}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
-                >
+                <button onClick={handleMealLogging} disabled={loading || !mealFile} className={`w-full py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${mealFile ? 'bg-orange-500 hover:bg-orange-600' : 'bg-zinc-300 cursor-not-allowed'}`}>
                   {loading ? "Logging..." : `Log Meal (${(log?.meals_logged || 0) + 1}/5) & Post`}
                 </button>
               </div>
