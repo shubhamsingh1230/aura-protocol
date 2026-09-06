@@ -17,13 +17,12 @@ export default function BottomNav() {
   const [, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
 
-  // Ensures Framer Motion and nav elements only render on the client
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) {
-    return null; // Renders nothing on the server, avoiding any hydration mismatch
+    return null;
   }
 
   const handleNavClick = (href: string) => {
@@ -52,8 +51,9 @@ export default function BottomNav() {
               <span className="text-xl">{item.icon}</span>
               <span className="tracking-wide text-[11px]">{item.label}</span>
               
+              {/* FIXED: Changed from <div /> to <span /> (valid HTML inside a button) */}
               {isActive && (
-                <div className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
+                <span className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
               )}
             </motion.button>
           );
