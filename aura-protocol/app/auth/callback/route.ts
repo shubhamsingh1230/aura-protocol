@@ -1,3 +1,4 @@
+// app/auth/callback/route.ts
 import { NextResponse } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
@@ -8,39 +9,41 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/feed';
 
-  if (code) {
-    const cookieStore = cookies();
-    
-    // 1. Create the redirect response target first
-    const response = NextResponse.redirect(`${origin}${next}`);
-
-    // 2. Instantiate Supabase client bound directly to the response cookies
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            response.cookies.set({ name, value, ...options });
-          },
-          remove(name: string, options: CookieOptions) {
-            response.cookies.set({ name, value: '', ...options });
-          },
-        },
-      }
-    );
-
-    // 3. Exchange code for session and attach tokens to response headers
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    
-    if (!error) {
-      return response; // Successfully sends cookies to browser and redirects to /feed!
-    }
+  if (!code) {
+    return NextResponse.json({ error: "No code provided in callback query" }, { status: 400 });
   }
 
-  // Fallback if code is missing or invalid
-  return NextResponse.redirect(`${origin}/login?error=Authentication failed. Please try again.`);
+  const cookieStore = cookies();
+  const response = NextResponse.redirect(`${origin}${next}`);
+
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          response.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
+
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    // UNMASK THE ERROR: Show what actually failed instead of silently looping
+    return NextResponse.json({ 
+      message: "OAuth exchange failed", 
+      error: error.message,
+      status: error.status 
+    }, { status: 500 });
+  }
+
+  return response;
 }
