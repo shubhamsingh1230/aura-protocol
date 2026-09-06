@@ -66,21 +66,21 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         }
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('daily_logs')
         .update({ gym_done: true })
-        .eq('id', log.id)
-        .select()
-        .single();
+        .eq('id', log.id);
 
-      if (data && !error) setLog(data);
-      router.refresh(); // Forces Next.js to refresh server state & update feeds/points
-      setActiveAction(null);
-      setGymFile(null);
+      if (error) {
+        alert(`Update Error: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      window.location.reload();
     } catch (err: any) {
       console.error("Gym upload failed:", err);
       alert(`Unexpected error: ${err.message || err}`);
-    } finally {
       setLoading(false);
     }
   }
@@ -124,21 +124,21 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         }
       }
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('daily_logs')
         .update({ editing_done: true })
-        .eq('id', log.id)
-        .select()
-        .single();
+        .eq('id', log.id);
 
-      if (data && !error) setLog(data);
-      router.refresh(); // Forces Next.js to refresh server state & update feeds/points
-      setActiveAction(null);
-      setWorkFile(null);
+      if (error) {
+        alert(`Update Error: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      window.location.reload();
     } catch (err: any) {
       console.error("Work upload failed:", err);
       alert(`Unexpected error: ${err.message || err}`);
-    } finally {
       setLoading(false);
     }
   }
@@ -182,21 +182,21 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       }
 
       const newMealCount = currentMeals + 1;
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('daily_logs')
         .update({ meals_logged: newMealCount })
-        .eq('id', log.id)
-        .select()
-        .single();
+        .eq('id', log.id);
 
-      if (data && !error) setLog(data);
-      router.refresh(); // Forces Next.js to refresh server state & update feeds/points
-      if (newMealCount === 5) setActiveAction(null);
-      setMealFile(null);
+      if (error) {
+        alert(`Update Error: ${error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      window.location.reload();
     } catch (err: any) {
       console.error("Meal log failed:", err);
       alert(`Unexpected error: ${err.message || err}`);
-    } finally {
       setLoading(false);
     }
   }
