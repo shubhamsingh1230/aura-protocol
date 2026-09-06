@@ -31,20 +31,19 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
       let photoUrl = null;
 
       // 1. Upload photo to Supabase Storage if selected
-      if (selectedFile) {
+    if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop();
         const fileName = `${profile.id}_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
-          .from('feed-photos')
+          .from('daily-proofs') // <-- CHANGE THIS FROM 'feed-photos' TO 'daily-proofs'
           .upload(fileName, selectedFile);
 
         if (!uploadError) {
           const { data: publicUrlData } = supabase.storage
-            .from('feed-photos')
+            .from('daily-proofs') // <-- CHANGE THIS HERE TOO
             .getPublicUrl(fileName);
           photoUrl = publicUrlData.publicUrl;
 
-          // 2. Insert into posts table for the feed
           await supabase.from('posts').insert({
             user_id: profile.id,
             image_url: photoUrl,
