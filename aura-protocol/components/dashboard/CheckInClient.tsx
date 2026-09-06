@@ -3,21 +3,77 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera } from "lucide-react";
+import { Trophy, Dumbbell, MonitorPlay, Utensils, CheckCircle2, ChevronRight, Flame, Camera, Upload } from "lucide-react";
 
-export default function CheckInClient({ profile, initialLog, gesture, timeStats }: any) {
+export default function CheckInClient({ profile, initialLog, gesture, analytics }: any) {
   const [log, setLog] = useState(initialLog);
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const supabase = createClient();
 
-  // MOCK DATA for variables we haven't built backend logic for yet
-  const consistencyScore = 82;
-  const percentile = 14;
-  const workTrend = [40, 60, 30, 80, 50, 90, 75];
-  const gymTrend = [0, 100, 100, 0, 100, 100, 100]; 
+  // Destructure real analytics passed from server
+  const { consistencyScore, percentile, workTrend, gymTrend, gymTime, editingTime } = analytics || {
+    consistencyScore: 0,
+    percentile: 50,
+    workTrend: [0,0,0,0,0,0,0],
+    gymTrend: [0,0,0,0,0,0,0],
+    gymTime: "0m",
+    editingTime: "0m"
+  };
 
-  // LIVE Supabase Update Logic
+  // LIVE Supabase Update Logic & Photo Upload
+  async function handleGymVerification() {
+    if (loading || !log?.id) return;
+    setLoading(true);
+
+    try {
+      let photoUrl = null;
+
+      // 1. Upload photo to Supabase Storage if selected
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${profile.id}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('feed-photos')
+          .upload(fileName, selectedFile);
+
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase.storage
+            .from('feed-photos')
+            .getPublicUrl(fileName);
+          photoUrl = publicUrlData.publicUrl;
+
+          // 2. Insert into posts table for the feed
+          await supabase.from('posts').insert({
+            user_id: profile.id,
+            image_url: photoUrl,
+            caption: "Gym session verified via Aura Protocol",
+            activity: "gym"
+          });
+        }
+      }
+
+      // 3. Update daily log to mark gym as done
+      const { data, error } = await supabase
+        .from('daily_logs')
+        .update({ gym_done: true })
+        .eq('id', log.id)
+        .select()
+        .single();
+
+      if (data && !error) {
+        setLog(data);
+      }
+      setActiveAction(null);
+      setSelectedFile(null);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function togglePillar(field: string) {
     if (loading || !log?.id) return;
     setLoading(true);
@@ -80,20 +136,20 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
         </div>
       </div>
 
-      {/* 2. MIDDLE BENTO GRID */}
+      {/* 2. MIDDLE BENTO GRID (Links to History/Analytics page) */}
       <div className="grid grid-cols-2 gap-4">
         
-        <Link href="/time" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
+        <Link href="/history" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-zinc-800 font-bold text-sm tracking-tight">Deep Work</p>
               <ChevronRight className="w-4 h-4 text-zinc-400" />
             </div>
             <p className="text-xs text-zinc-500 font-medium mb-1">Today</p>
-            <p className="text-xl font-bold tabular-nums text-blue-500">{timeStats?.editing || "0m"}</p>
+            <p className="text-xl font-bold tabular-nums text-blue-500">{editingTime}</p>
           </div>
           <div className="flex items-end justify-between h-12 gap-1 mt-4">
-            {workTrend.map((height, i) => (
+            {workTrend.map((height: number, i: number) => (
               <div key={i} className="w-full bg-blue-500/20 rounded-t-sm relative flex items-end justify-center" style={{ height: '100%' }}>
                 <div className="w-full bg-blue-500 rounded-t-sm transition-all" style={{ height: `${height}%` }} />
               </div>
@@ -101,17 +157,17 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
           </div>
         </Link>
 
-        <Link href="/time" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
+        <Link href="/history" className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-95 transition-all">
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-zinc-800 font-bold text-sm tracking-tight">Training</p>
               <ChevronRight className="w-4 h-4 text-zinc-400" />
             </div>
             <p className="text-xs text-zinc-500 font-medium mb-1">Today</p>
-            <p className="text-xl font-bold tabular-nums text-emerald-500">{timeStats?.gym || "0m"}</p>
+            <p className="text-xl font-bold tabular-nums text-emerald-500">{gymTime}</p>
           </div>
           <div className="flex items-end justify-between h-12 gap-1 mt-4">
-            {gymTrend.map((height, i) => (
+            {gymTrend.map((height: number, i: number) => (
               <div key={i} className="w-full bg-emerald-500/20 rounded-t-sm relative flex items-end justify-center" style={{ height: '100%' }}>
                 <div className="w-full bg-emerald-500 rounded-t-sm transition-all" style={{ height: `${height}%` }} />
               </div>
@@ -134,13 +190,12 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
         </div>
       </div>
 
-      {/* 3. LIVE LOGGING ACTIONS (Accordions) */}
+      {/* 3. LIVE LOGGING ACTIONS (Accordions with Camera/File Upload) */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-zinc-900 mb-3 px-2">Action Items</h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5">
           
           {/* Gym Verification Accordion */}
-         {/* Gym Verification Accordion */}
           <div className={`rounded-2xl transition-all overflow-hidden ${activeAction === 'gym' ? 'bg-white/[0.8] shadow-sm' : 'bg-white/[0.4] hover:bg-white/[0.6]'}`}>
             <button 
               onClick={() => setActiveAction(activeAction === 'gym' ? null : 'gym')}
@@ -159,19 +214,35 @@ export default function CheckInClient({ profile, initialLog, gesture, timeStats 
             </button>
             
             {activeAction === 'gym' && !log?.gym_done && (
-              <div className="px-3 pb-3 pt-1">
-                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2 mb-2">
+              <div className="px-3 pb-3 pt-1 space-y-3">
+                <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-2">
                   <Camera className="w-6 h-6 text-zinc-400" />
                   <p className="text-xs text-zinc-500 font-medium">
                     Show today's gesture: <strong className="text-zinc-900">{typeof gesture === 'string' ? gesture : (gesture?.name || gesture?.gesture_name || "Peace Sign")}</strong>
                   </p>
+                  
+                  {/* File/Camera Input */}
+                  <label className="mt-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                    <Upload className="w-3.5 h-3.5" />
+                    {selectedFile ? selectedFile.name : "Select Photo / Take Picture"}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment"
+                      className="hidden" 
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    />
+                  </label>
                 </div>
+
                 <button 
-                  onClick={() => { togglePillar('gym_done'); setActiveAction(null); }}
-                  disabled={loading}
-                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+                  onClick={handleGymVerification}
+                  disabled={loading || !selectedFile}
+                  className={`w-full py-2.5 text-white font-bold text-sm rounded-xl transition-all active:scale-95 ${
+                    selectedFile ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-zinc-300 cursor-not-allowed'
+                  }`}
                 >
-                  {loading ? "Uploading..." : "Upload to Feed & Verify"}
+                  {loading ? "Uploading to Feed..." : "Upload & Verify Gym"}
                 </button>
               </div>
             )}
