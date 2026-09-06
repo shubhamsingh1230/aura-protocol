@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Trophy, Flame, Award } from "lucide-react";
+import { Trophy, Flame, Award, Shield, Zap } from "lucide-react";
 
 export default async function LeaderboardPage() {
   const supabase = createClient();
@@ -8,16 +8,10 @@ export default async function LeaderboardPage() {
 
   if (!user) return redirect("/login");
 
-  // 1. Fetch all daily logs directly
-  const { data: logs, error: logsError } = await supabase
+  const { data: logs } = await supabase
     .from('daily_logs')
     .select('user_id, gym_done, editing_done, meals_logged');
 
-  if (logsError) {
-    console.error("Error fetching logs:", logsError.message);
-  }
-
-  // 2. Fetch all profiles directly
   const { data: profiles } = await supabase
     .from('profiles')
     .select('id, full_name, avatar_url');
@@ -25,7 +19,6 @@ export default async function LeaderboardPage() {
   const profileMap = new Map();
   (profiles || []).forEach((p) => profileMap.set(p.id, p));
 
-  // 3. Aggregate Aura points per user in memory
   const userScores = new Map();
 
   (logs || []).forEach((log) => {
@@ -45,15 +38,32 @@ export default async function LeaderboardPage() {
     entry.totalAura += gymPoints + workPoints + mealPoints;
   });
 
-  // 4. Build and sort leaderboard array
   const leaderboard: any[] = [];
   userScores.forEach((stats, userId) => {
     const profile = profileMap.get(userId) || {};
+    const totalAura = Math.round(stats.totalAura);
+
+    // Immersive Title Tiers
+    let title = "🌱 Rookie";
+    let badgeColor = "bg-zinc-100 text-zinc-600 border-zinc-200";
+    if (totalAura >= 200) {
+      title = "🔥 Final Boss";
+      badgeColor = "bg-amber-500/10 text-amber-600 border-amber-500/30";
+    } else if (totalAura >= 100) {
+      title = "⚡ Elite Operator";
+      badgeColor = "bg-blue-500/10 text-blue-600 border-blue-500/30";
+    } else if (totalAura >= 50) {
+      title = "🛡️ Veteran";
+      badgeColor = "bg-emerald-500/10 text-emerald-600 border-emerald-500/30";
+    }
+
     leaderboard.push({
       id: userId,
       name: profile.full_name || "Aura Operator",
-      totalAura: Math.round(stats.totalAura),
+      totalAura,
       daysLogged: stats.daysLogged,
+      title,
+      badgeColor,
     });
   });
 
@@ -63,7 +73,7 @@ export default async function LeaderboardPage() {
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
       <div>
         <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Leaderboard</h1>
-        <p className="text-zinc-500 text-sm font-medium">Global Operator Rankings</p>
+        <p className="text-zinc-500 text-sm font-medium">Global Operator Rankings & Tiers</p>
       </div>
 
       <div className="space-y-3">
@@ -76,7 +86,7 @@ export default async function LeaderboardPage() {
               <div 
                 key={operator.id} 
                 className={`liquid-glass p-4 rounded-3xl flex items-center justify-between border ${
-                  isCurrentUser ? 'border-emerald-500/50 bg-emerald-500/[0.03]' : 'border-white/[0.8]'
+                  isCurrentUser ? 'border-emerald-500/50 bg-emerald-500/[0.03]' : 'border-white/80'
                 }`}
               >
                 <div className="flex items-center gap-3.5">
@@ -88,10 +98,13 @@ export default async function LeaderboardPage() {
                     {rank === 1 ? <Trophy className="w-4 h-4" /> : `#${rank}`}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-zinc-900 flex items-center gap-1.5">
-                      {operator.name} {isCurrentUser && <span className="text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full">You</span>}
-                    </p>
-                    <p className="text-xs text-zinc-400 font-medium">{operator.daysLogged} Days Tracked</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-zinc-900">{operator.name}</p>
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${operator.badgeColor}`}>
+                        {operator.title}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-medium">{operator.daysLogged} Days Tracked {isCurrentUser && "• (You)"}</p>
                   </div>
                 </div>
 
