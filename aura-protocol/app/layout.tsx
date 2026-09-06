@@ -1,55 +1,29 @@
-"use client";
+import "./globals.css"; // Make sure this points to your Tailwind CSS file
+import BottomNav from "@/components/BottomNav"; // Adjust this path to wherever you saved BottomNav.tsx
 
-import { useTransition } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { motion } from "framer-motion";
-import clsx from "clsx";
+export const metadata = {
+  title: "The Aura Protocol",
+  description: "Stake ₹100. Show up. Run the leaderboard.",
+};
 
-const NAV_ITEMS = [
-  { label: "Home", href: "/", icon: "🏠" },
-  { label: "Feed", href: "/feed", icon: "🔥" },
-  { label: "Ranks", href: "/leaderboard", icon: "👑" },
-];
-
-export default function BottomNav() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [, startTransition] = useTransition();
-
-  const handleNavClick = (href: string) => {
-    startTransition(() => {
-      router.push(href);
-    });
-  };
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pb-6 px-4 pointer-events-none">
-      <div className="w-full max-w-md glass border border-white/10 rounded-2xl px-6 py-3 flex justify-between items-center pointer-events-auto shadow-2xl backdrop-blur-xl">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="bg-black text-white min-h-screen pb-24" suppressHydrationWarning>
+        
+        {/* 1. This is where your pages (like Login and Home) actually load */}
+        <div className="mx-auto w-full max-w-md min-h-screen relative">
+          {children}
+        </div>
 
-          return (
-            <motion.button
-              key={item.href}
-              whileTap={{ scale: 0.85 }} // Instant micro-compression on touch
-              transition={{ duration: 0.05, ease: "easeOut" }}
-              onClick={() => handleNavClick(item.href)}
-              className={clsx(
-                "flex flex-col items-center gap-1 text-xs transition-colors relative py-1 px-3 rounded-xl",
-                isActive ? "text-mint font-semibold bg-white/5" : "text-grey-text hover:text-white"
-              )}
-            >
-              <span className="text-xl">{item.icon}</span>
-              <span className="tracking-wide text-[11px]">{item.label}</span>
-              
-              {/* FIXED: Changed from <div /> to <span /> */}
-              {isActive && (
-                <span className="absolute -bottom-1 w-1 h-1 bg-mint rounded-full shadow-glow" />
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
-    </nav>
+        {/* 2. The BottomNav sits here, safely inside the body */}
+        <BottomNav />
+        
+      </body>
+    </html>
   );
 }
