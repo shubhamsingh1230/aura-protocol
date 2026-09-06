@@ -37,7 +37,6 @@ export default function FeedClient({ initialPosts, profiles, currentUserId }: an
         {feedCards.length > 0 ? (
           feedCards.map((card: any) => {
             const profile = profileMap.get(card.userId) || {};
-            // Smarter name fallback so it doesn't just show "Aura Operator" if a name exists
             const name = profile.full_name || profile.username || `Operator_${card.userId.slice(0, 4)}`;
             const timeAgo = new Date(card.latestTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
