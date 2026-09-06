@@ -2,50 +2,61 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Trophy, Flame, Award } from "lucide-react";
 
-export default async function RanksPage() {
+export default async function LeaderboardPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return redirect("/login");
 
-  // Fetch profiles and their daily logs
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select(`
-      id,
-      full_name,
-      avatar_url,
-      daily_logs (
-        gym_done,
-        editing_done,
-        meals_logged
-      )
-    `);
+  // 1. Fetch all daily logs directly
+  const { data: logs, error: logsError } = await supabase
+    .from('daily_logs')
+    .select('user_id, gym_done, editing_done, meals_logged');
 
-  if (error) {
-    console.error("Error fetching leaderboard data:", error.message);
+  if (logsError) {
+    console.error("Error fetching logs:", logsError.message);
   }
 
-  // Calculate total cumulative Aura points for each user
-  const leaderboard = (profiles || []).map((profile: any) => {
-    const logs = profile.daily_logs || [];
-    
-    const totalAura = logs.reduce((acc: number, log: any) => {
-      const gymPoints = log.gym_done ? 25 : 0;
-      const workPoints = log.editing_done ? 25 : 0;
-      const mealPoints = ((log.meals_logged || 0) / 5) * 25;
-      return acc + gymPoints + workPoints + mealPoints;
-    }, 0);
+  // 2. Fetch all profiles directly
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url');
 
-    return {
-      id: profile.id,
-      name: profile.full_name || "Aura Operator",
-      totalAura: Math.round(totalAura),
-      daysLogged: logs.length
-    };
+  const profileMap = new Map();
+  (profiles || []).forEach((p) => profileMap.set(p.id, p));
+
+  // 3. Aggregate Aura points per user in memory
+  const userScores = new Map();
+
+  (logs || []).forEach((log) => {
+    const userId = log.user_id;
+    if (!userId) return;
+
+    if (!userScores.has(userId)) {
+      userScores.set(userId, { totalAura: 0, daysLogged: 0 });
+    }
+
+    const entry = userScores.get(userId);
+    entry.daysLogged += 1;
+
+    const gymPoints = log.gym_done ? 25 : 0;
+    const workPoints = log.editing_done ? 25 : 0;
+    const mealPoints = ((log.meals_logged || 0) / 5) * 25;
+    entry.totalAura += gymPoints + workPoints + mealPoints;
   });
 
-  // Sort leaderboard descending by total Aura points
+  // 4. Build and sort leaderboard array
+  const leaderboard: any[] = [];
+  userScores.forEach((stats, userId) => {
+    const profile = profileMap.get(userId) || {};
+    leaderboard.push({
+      id: userId,
+      name: profile.full_name || "Aura Operator",
+      totalAura: Math.round(stats.totalAura),
+      daysLogged: stats.daysLogged,
+    });
+  });
+
   leaderboard.sort((a, b) => b.totalAura - a.totalAura);
 
   return (
@@ -59,7 +70,6 @@ export default async function RanksPage() {
         {leaderboard.length > 0 ? (
           leaderboard.map((operator, index) => {
             const rank = index + 1;
-            const isTopThree = rank <= 3;
             const isCurrentUser = operator.id === user.id;
 
             return (
