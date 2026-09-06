@@ -1,5 +1,4 @@
 import "./globals.css"; 
-// ✅ FIXED: Pointing exactly to the ui folder you specified
 import BottomNav from "@/components/ui/BottomNav"; 
 
 export const metadata = {
@@ -14,15 +13,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="bg-black text-white min-h-screen pb-24" suppressHydrationWarning>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+      </head>
+      <body suppressHydrationWarning className="text-zinc-100 min-h-screen pb-28 selection:bg-emerald-500/30 selection:text-emerald-200">
         
-        {/* Your pages (like Login and Home) load here safely inside the body */}
-        <div className="mx-auto w-full max-w-md min-h-screen relative">
-          {children}
+        {/* Main application container with a subtle frosted border frame for mobile-first aesthetic */}
+        <div className="mx-auto w-full max-w-md min-h-screen relative flex flex-col justify-between border-x border-white/[0.04] bg-[#050507]/80 backdrop-blur-xl shadow-2xl">
+          <div className="w-full flex-1">
+            {children}
+          </div>
+          
+          {/* Persistent Floating Bottom Navigation */}
+          <BottomNav />
         </div>
-
-        {/* The BottomNav sits here, safely rendering at the bottom of the screen */}
-        <BottomNav />
         
       </body>
     </html>
