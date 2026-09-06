@@ -3,46 +3,34 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
-@layer base {
-  body {
-    background-color: #050507;
-    background-image: 
-      radial-gradient(circle at 50% -20%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
-    background-attachment: fixed;
-    color: #f4f4f5;
-    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -webkit-tap-highlight-color: transparent;
-    min-height: 100vh;
-  }
+html,
+body {
+  background: #eef1f5;
+  color: #17171e;
+  min-height: 100vh;
 }
 
-@layer utilities {
-  .liquid-glass {
-    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/[0.08] shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_8px_32px_rgba(0,0,0,0.4)];
-  }
-  
-  .liquid-glass-active {
-    @apply bg-white/[0.08] backdrop-blur-2xl border border-white/[0.15] shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_8px_32px_rgba(0,0,0,0.5)];
-  }
-  
-  /* Legacy alias so old code gracefully falls back to liquid glass instead of grey boxes */
-  .glass {
-    @apply liquid-glass;
-  }
-}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 
-.tabular {
-  font-variant-numeric: tabular-nums;
+  /* Soft ambient color wash behind the glass panels — this is what makes
+     frosted cards look like they're refracting something, instead of
+     floating on flat grey. Pure CSS, no image assets. */
+  background-image: radial-gradient(circle at 12% 18%, rgba(47, 143, 224, 0.14), transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(31, 174, 100, 0.12), transparent 38%),
+    radial-gradient(circle at 50% 95%, rgba(201, 151, 31, 0.1), transparent 45%);
+  background-attachment: fixed;
+  background-color: #eef1f5;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2c2c2e transparent;
+  scrollbar-color: #c7cbd3 transparent;
 }
 
 ::-webkit-scrollbar {
@@ -50,12 +38,43 @@
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2c2c2e;
+  background: #c7cbd3;
   border-radius: 999px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/*
+  The frosted-glass surface used everywhere (cards, banners, nav bar).
+  Three things make it read as "glass" rather than just "a translucent
+  box": the blur+saturate on what's behind it, a soft drop shadow below
+  (depth), and a bright inset line along the top edge (a fake specular
+  highlight — light catching the top of a curved glass surface).
+*/
+.glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 :focus-visible {
-  outline: 2px solid #34c759;
+  outline: 2px solid #1fae64;
   outline-offset: 2px;
   border-radius: 6px;
 }
