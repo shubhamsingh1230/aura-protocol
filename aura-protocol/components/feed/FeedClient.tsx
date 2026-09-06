@@ -7,7 +7,7 @@ import { Flame, Flag, CheckCircle, Loader2 } from "lucide-react";
 export default function FeedClient() {
   const [posts, setPosts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
-  const [flaggedPostIds, setFlaggedPostIds] = useState<set<string>>(new Set());
+  const [flaggedPostIds, setFlaggedPostIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -35,7 +35,7 @@ export default function FeedClient() {
     loadData();
   }, []);
 
-  async function handleFlagPost(postId: string, targetUserId: string) {
+  async function handleFlagPost(postId: string, targetUserId: string, dailyLogId: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return alert("You must be logged in to flag a proof.");
 
@@ -46,7 +46,8 @@ export default function FeedClient() {
 
     const { error } = await supabase.from('flags').insert({
       post_id: postId,
-      flagged_by: user.id,
+      daily_log_id: dailyLogId || null,
+      flagged_by_user_id: user.id, // Fixed column name match
       target_user_id: targetUserId,
       reason: 'Community Flagged Proof'
     });
@@ -106,6 +107,7 @@ export default function FeedClient() {
 
             const anyPost = card.gymPost || card.workPost || card.mealPosts[0];
             const postId = anyPost?.id;
+            const dailyLogId = anyPost?.daily_log_id;
             const isFlagged = postId && flaggedPostIds.has(postId);
 
             return (
@@ -123,7 +125,7 @@ export default function FeedClient() {
                   
                   {postId && (
                     <button 
-                      onClick={() => handleFlagPost(postId, card.userId)}
+                      onClick={() => handleFlagPost(postId, card.userId, dailyLogId)}
                       className={`p-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold ${
                         isFlagged ? 'bg-red-500 text-white' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'
                       }`}
