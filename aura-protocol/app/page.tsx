@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasLiveStakeInActiveSeason } from "@/lib/season";
+import LandingAuthClient from "@/components/auth/LandingAuthClient";
 
 // 1. Force dynamic rendering: Tells Next.js to NEVER statically build this auth page
 export const dynamic = "force-dynamic";
@@ -12,8 +13,9 @@ export default async function RootPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // If not logged in, render the welcome landing page with Google & Discord auth directly
   if (!user) {
-    redirect("/login");
+    return <LandingAuthClient />;
   }
 
   const { data: profile } = await supabase
@@ -32,13 +34,6 @@ export default async function RootPage() {
     redirect("/onboarding/stake");
   }
 
-  // Final redirect if all checks pass
+  // Final redirect straight to Command Center for returning active users
   redirect("/dashboard");
-  
-  // 2. Satisfy the Next.js compiler so it doesn't throw the "Unsupported Component" object error
-  return (
-    <main className="min-h-screen bg-black">
-      {/* Fallback UI that will never actually be seen because redirect() intercepts it */}
-    </main>
-  );
 }
