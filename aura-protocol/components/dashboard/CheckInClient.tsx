@@ -1,6 +1,7 @@
 // components/dashboard/CheckInClient.tsx
 "use client";
-
+import { uploadProofPhoto } from "@/lib/upload";
+import { Camera, Loader2 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
