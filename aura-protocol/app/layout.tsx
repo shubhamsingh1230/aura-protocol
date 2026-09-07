@@ -1,26 +1,25 @@
-import type { Metadata, Viewport } from "next";
+// app/layout.tsx
+import type { Metadata } from "next";
 import "./globals.css";
-import BottomNav from "@/components/ui/BottomNav";
+import BottomNav from "@/components/navigation/BottomNav"; // <-- 1. Import BottomNav
 
 export const metadata: Metadata = {
-  title: "THE AURA PROTOCOL",
-  description: "Stake ₹100. Show up for 7 pillars a day. Own the leaderboard.",
+  title: "The Aura Protocol",
+  description: "Gamified social productivity platform",
 };
 
-export const viewport: Viewport = {
-  themeColor: "#EEF1F5",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="bg-canvas text-ink min-h-screen pb-24">
-        <div className="mx-auto w-full max-w-md min-h-screen relative">
-          {children}
-        </div>
+      <body className="bg-zinc-950 text-zinc-100 min-h-screen selection:bg-emerald-500 selection:text-black">
+        {/* Main page content */}
+        {children}
+        
+        {/* 2. Render BottomNav globally so the Squad, Arena, and Dossier tabs are always visible */}
         <BottomNav />
       </body>
     </html>
