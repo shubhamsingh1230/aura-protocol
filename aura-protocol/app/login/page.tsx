@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
   Flame, 
   Shield, 
@@ -72,16 +72,18 @@ export default function LoginPage() {
   }
 
   if (!mounted) {
-    return <div className="min-h-screen bg-zinc-50" />;
+    return <div className="min-h-screen" />;
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 max-w-md mx-auto text-center bg-gradient-to-br from-zinc-50 via-zinc-100 to-emerald-50/40">
+    // STRIPPED: Removed the hardcoded bg-gradient so globals.css background blobs show through
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12 max-w-md mx-auto text-center">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="w-full space-y-6 p-8 rounded-3xl liquid-glass border border-white/80 shadow-2xl backdrop-blur-2xl bg-white/75"
+        // STRIPPED: Removed backdrop-blur-2xl and bg-white/75. Let liquid-glass do the work.
+        className="w-full space-y-6 p-8 rounded-3xl liquid-glass shadow-2xl"
       >
         {/* Emblem & Season Badge */}
         <div className="flex flex-col items-center space-y-2.5">
@@ -106,7 +108,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs text-left font-semibold flex items-center gap-2">
+          <div className="p-3.5 rounded-2xl bg-rose-50/80 border border-rose-200/50 text-rose-600 text-xs text-left font-semibold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -118,7 +120,7 @@ export default function LoginPage() {
           <button
             onClick={() => handleOAuthLogin("google")}
             disabled={loadingProvider !== null || emailLoading}
-            className="w-full relative group overflow-hidden rounded-2xl bg-white border border-zinc-200/90 text-zinc-900 font-bold py-3.5 px-5 text-xs shadow-sm hover:bg-zinc-50 active:scale-[0.99] disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
+            className="w-full relative group overflow-hidden rounded-2xl bg-white/90 border border-white/40 text-zinc-900 font-bold py-3.5 px-5 text-xs shadow-sm hover:bg-white active:scale-[0.99] disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
           >
             {loadingProvider === "google" ? (
               <Loader2 className="w-4 h-4 animate-spin text-zinc-500" />
@@ -137,7 +139,7 @@ export default function LoginPage() {
           <button
             onClick={() => handleOAuthLogin("discord")}
             disabled={loadingProvider !== null || emailLoading}
-            className="w-full relative group overflow-hidden rounded-2xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold py-3.5 px-5 text-xs shadow-sm active:scale-[0.99] disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
+            className="w-full relative group overflow-hidden rounded-2xl bg-[#5865F2]/90 hover:bg-[#4752C4] border border-[#5865F2]/20 text-white font-bold py-3.5 px-5 text-xs shadow-sm active:scale-[0.99] disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
           >
             {loadingProvider === "discord" ? (
               <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -151,7 +153,7 @@ export default function LoginPage() {
         </div>
 
         {/* Optional Secondary Passwordless Email Option */}
-        <div className="pt-2 border-t border-zinc-200/60">
+        <div className="pt-2 border-t border-zinc-200/50">
           {!showEmailAuth ? (
             <button
               onClick={() => setShowEmailAuth(true)}
@@ -160,7 +162,7 @@ export default function LoginPage() {
               Sign in via email magic link →
             </button>
           ) : emailSent ? (
-            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-2">
+            <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200/50 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Magic link dispatched! Check your inbox.</span>
             </div>
@@ -173,7 +175,7 @@ export default function LoginPage() {
                   placeholder="operator@domain.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-zinc-200 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/70 border border-white/80 text-xs font-semibold outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
                 <Mail className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-3" />
               </div>
@@ -181,14 +183,14 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowEmailAuth(false)}
-                  className="px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-xl text-xs font-bold"
+                  className="px-3 py-2 bg-white/50 hover:bg-white/80 border border-white/60 text-zinc-600 rounded-xl text-xs font-bold transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={emailLoading || !email.trim()}
-                  className="flex-1 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50 transition-all"
                 >
                   {emailLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Send Magic Link</span>}
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -198,7 +200,7 @@ export default function LoginPage() {
           )}
         </div>
 
-        <p className="text-center text-[10px] text-zinc-400 font-medium">
+        <p className="text-center text-[10px] text-zinc-500 font-medium">
           Instant authentication. Operator aliases, streaks, and AP sync automatically across sessions.
         </p>
       </motion.div>
