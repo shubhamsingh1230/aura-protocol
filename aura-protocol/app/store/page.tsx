@@ -5,337 +5,262 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { 
   ShoppingBag, 
+  Shield, 
   Sparkles, 
+  Flame, 
   Coffee, 
-  Film, 
-  Utensils, 
-  Gift, 
-  Lock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Loader2,
-  ArrowUpRight
+  Zap, 
+  Check, 
+  Loader2, 
+  AlertCircle
 } from "lucide-react";
-import Link from "next/link";
 
-interface RewardItem {
+interface StoreItem {
   id: string;
-  title: string;
-  category: string;
-  costAP: number;
-  valueINR: number;
-  minTier: string;
-  icon: any;
+  name: string;
+  category: "defense" | "recovery" | "multiplier";
+  cost: number;
   description: string;
+  benefit: string;
+  icon: any;
+  accent: string;
 }
 
-const REWARDS_CATALOG: RewardItem[] = [
+const STORE_ITEMS: StoreItem[] = [
   {
-    id: "food-100",
-    title: "₹100 Food Voucher",
-    category: "Dining",
-    costAP: 1500,
-    valueINR: 100,
-    minTier: "Bronze",
-    icon: Utensils,
-    description: "Instant digital code redeemable on Swiggy or Zomato orders.",
+    id: "streak_shield",
+    name: "Streak Shield",
+    category: "defense",
+    cost: 150,
+    description: "Automated loss protection. Deploys instantly if you fail to log pillars on an emergency day.",
+    benefit: "+1 Shield Inventory",
+    icon: Shield,
+    accent: "text-blue-500 bg-blue-500/10 border-blue-500/20",
   },
   {
-    id: "coffee-100",
-    title: "₹100 Coffee Voucher",
-    category: "Beverage",
-    costAP: 1400,
-    valueINR: 100,
-    minTier: "Bronze",
+    id: "rest_pass",
+    name: "Tactical Rest Pass",
+    category: "recovery",
+    cost: 100,
+    description: "Scheduled central nervous system recovery. Auto-clears your Movement pillar for 24 hours.",
+    benefit: "Auto-clears 1 Workout",
     icon: Coffee,
-    description: "Single-use digital coupon for cafe outlets and coffee pickups.",
+    accent: "text-amber-500 bg-amber-500/10 border-amber-500/20",
   },
   {
-    id: "movie-200",
-    title: "₹200 Movie Voucher",
-    category: "Entertainment",
-    costAP: 2700,
-    valueINR: 200,
-    minTier: "Silver",
-    icon: Film,
-    description: "BookMyShow discount pass valid on any cinema booking.",
-  },
-  {
-    id: "shopping-250",
-    title: "₹250 Retail Pass",
-    category: "Shopping",
-    costAP: 3200,
-    valueINR: 250,
-    minTier: "Gold",
-    icon: Gift,
-    description: "Official digital gift voucher for Amazon Pay or Flipkart.",
+    id: "xp_overdrive",
+    name: "Aura Overdrive",
+    category: "multiplier",
+    cost: 200,
+    description: "Supercharges behavioral rewards. Doubles all AP earned across all 7 pillars for 24 hours.",
+    benefit: "2x AP Yield for 24h",
+    icon: Zap,
+    accent: "text-purple-500 bg-purple-500/10 border-purple-500/20",
   },
 ];
 
 export default function StorePage() {
   const [profile, setProfile] = useState<any>(null);
-  const [redemptions, setRedemptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [redeemingId, setRedeemingId] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const supabase = createClient();
 
   useEffect(() => {
-    loadStoreData();
+    fetchProfileData();
   }, []);
 
-  async function loadStoreData() {
+  async function fetchProfileData() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: profileData } = await supabase
+    const { data } = await supabase
       .from("profiles")
-      .select("id, full_name, aura_points, subscription_status, identity_rank")
+      .select("id, handle, aura_points, streak_shields, identity_rank")
       .eq("id", user.id)
       .single();
 
-    const { data: redemptionsData } = await supabase
-      .from("reward_redemptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    setProfile(profileData);
-    setRedemptions(redemptionsData || []);
+    setProfile(data);
     setLoading(false);
   }
 
-  async function handleRedeem(item: RewardItem) {
+  async function handlePurchase(item: StoreItem) {
     if (!profile) return;
-    setNotification(null);
+    setStatusMessage(null);
 
-    // 1. Economic guard: Block trial accounts from draining rewards
-    if (profile.subscription_status !== "active") {
-      setNotification({
-        text: "Redemption locked. You must be an active subscriber (₹10/wk pass) to claim real-world rewards.",
+    if (profile.aura_points < item.cost) {
+      setStatusMessage({
+        text: `Insufficient Aura Points. You need ${item.cost - profile.aura_points} more AP to redeem this.`,
         type: "error",
       });
       return;
     }
 
-    // 2. Check points balance
-    if ((profile.aura_points || 0) < item.costAP) {
-      setNotification({
-        text: `Insufficient AP. You need ${item.costAP - (profile.aura_points || 0)} more Aura Points to unlock this reward.`,
-        type: "error",
-      });
-      return;
+    setPurchasingId(item.id);
+
+    const updatedAP = profile.aura_points - item.cost;
+    const updatePayload: Record<string, any> = { aura_points: updatedAP };
+
+    if (item.id === "streak_shield") {
+      updatePayload.streak_shields = (profile.streak_shields || 0) + 1;
     }
 
-    setRedeemingId(item.id);
-
-    const updatedPoints = profile.aura_points - item.costAP;
-
-    // 3. Deduct points from profile
-    const { error: profileError } = await supabase
+    // 1. Update user profile balances
+    const { error: updateError } = await supabase
       .from("profiles")
-      .update({ aura_points: updatedPoints })
+      .update(updatePayload)
       .eq("id", profile.id);
 
-    if (profileError) {
-      setNotification({ text: `Transaction failed: ${profileError.message}`, type: "error" });
-      setRedeemingId(null);
+    if (updateError) {
+      setStatusMessage({ text: `Transaction failed: ${updateError.message}`, type: "error" });
+      setPurchasingId(null);
       return;
     }
 
-    // 4. Record redemption entry for moderation/fulfillment
-    const { error: redemptionError } = await supabase
-      .from("reward_redemptions")
-      .insert({
-        user_id: profile.id,
-        reward_id: item.id,
-        title: item.title,
-        cost_ap: item.costAP,
-        status: "pending",
-      });
+    // 2. Record purchase in ledger
+    await supabase.from("store_purchases").insert({
+      user_id: profile.id,
+      item_id: item.id,
+      item_name: item.name,
+      cost_ap: item.cost,
+    });
 
-    if (redemptionError) {
-      setNotification({ text: `Failed to register order: ${redemptionError.message}`, type: "error" });
-    } else {
-      setNotification({
-        text: `Successfully claimed ${item.title}! Your voucher code will be processed within 24 hours.`,
-        type: "success",
-      });
-      setProfile((prev: any) => ({ ...prev, aura_points: updatedPoints }));
-      await loadStoreData();
-    }
+    // 3. Dispatch confirmation notification
+    await supabase.from("notifications").insert({
+      user_id: profile.id,
+      actor_id: profile.id,
+      type: "store_purchase",
+      message: `🛍️ Marketplace Transaction: Redeemed ${item.name} for ${item.cost} AP.`,
+    });
 
-    setRedeemingId(null);
+    setProfile((prev: any) => ({
+      ...prev,
+      ...updatePayload,
+    }));
+
+    setStatusMessage({
+      text: `Successfully acquired ${item.name}! Applied to your dossier.`,
+      type: "success",
+    });
+
+    setPurchasingId(null);
   }
-
-  if (loading) {
-    return (
-      <div className="pt-24 text-center flex flex-col items-center justify-center space-y-2">
-        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-        <p className="text-xs text-zinc-400 font-medium">Syncing Aura Treasury...</p>
-      </div>
-    );
-  }
-
-  const isSubscribed = profile?.subscription_status === "active";
 
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
-      {/* Header Banner */}
-      <div>
-        <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Aura Marketplace</h1>
-        <p className="text-zinc-500 text-sm font-medium">Redeem Consistency for Real-World Value</p>
+      {/* Title & AP Treasury Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Marketplace</h1>
+          <p className="text-zinc-500 text-sm font-medium">Protocol Asset Exchange</p>
+        </div>
+
+        <div className="liquid-glass px-3.5 py-2 rounded-2xl flex items-center gap-1.5 border border-white/80 shadow-sm text-xs font-black text-emerald-600 backdrop-blur-xl bg-white/70">
+          <Sparkles className="w-4 h-4" />
+          <span>{loading ? "..." : profile?.aura_points || 0} AP</span>
+        </div>
       </div>
 
-      {/* Balance Card */}
-      <div className="liquid-glass rounded-3xl p-5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-3">
-        <div className="flex items-center justify-between text-xs font-bold text-zinc-500 uppercase tracking-wider">
-          <span>Available Treasury Balance</span>
-          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[10px]">
-            {profile?.identity_rank || "Initiate"} Tier
-          </span>
+      {/* Operator Vault Overview */}
+      <div className="liquid-glass rounded-3xl p-5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 flex items-center justify-between">
+        <div className="space-y-0.5">
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Active Inventory</p>
+          <p className="text-sm font-black text-zinc-800">
+            {profile?.identity_rank || "Initiate"} Reserve
+          </p>
         </div>
-
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-extrabold text-zinc-900">{profile?.aura_points || 0}</span>
-          <span className="text-sm font-bold text-emerald-600 flex items-center gap-1">
-            <Sparkles className="w-4 h-4" /> AP
-          </span>
-        </div>
-
-        {!isSubscribed && (
-          <div className="pt-3 border-t border-zinc-200/60 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-amber-700 font-semibold">
-              <Lock className="w-3.5 h-3.5" />
-              <span>Redemptions Locked (Trial Pass)</span>
-            </div>
-            <Link
-              href="/checkout"
-              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5"
-            >
-              <span>Activate Pass</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center gap-1.5 text-xs font-bold text-blue-700">
+            <Shield className="w-3.5 h-3.5" />
+            <span>{profile?.streak_shields || 0} Shields</span>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Notification Toast */}
-      {notification && (
+      {statusMessage && (
         <div
-          className={`p-4 rounded-2xl text-xs font-bold border flex items-start gap-2.5 ${
-            notification.type === "success"
+          className={`p-3.5 rounded-2xl text-xs font-bold border flex items-center gap-2 ${
+            statusMessage.type === "success"
               ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-              : "bg-red-50 border-red-200 text-red-600"
+              : "bg-rose-50 border-rose-200 text-rose-600"
           }`}
         >
-          {notification.type === "success" ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          {statusMessage.type === "success" ? (
+            <Check className="w-4 h-4 shrink-0" />
           ) : (
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <AlertCircle className="w-4 h-4 shrink-0" />
           )}
-          <span>{notification.text}</span>
+          <span>{statusMessage.text}</span>
         </div>
       )}
 
-      {/* Rewards Catalog */}
+      {/* Items List */}
       <div className="space-y-4">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
-          Authorized Vouchers & Passes
-        </p>
+        {STORE_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isAffordable = (profile?.aura_points || 0) >= item.cost;
+          const isBuying = purchasingId === item.id;
 
-        <div className="grid grid-cols-1 gap-3">
-          {REWARDS_CATALOG.map((item) => {
-            const Icon = item.icon;
-            const canAfford = (profile?.aura_points || 0) >= item.costAP;
-            const isLocked = !isSubscribed;
-
-            return (
-              <div
-                key={item.id}
-                className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-zinc-100 flex items-center justify-center text-zinc-700 shadow-inner">
-                    <Icon className="w-5 h-5 text-emerald-600" />
+          return (
+            <div
+              key={item.id}
+              className="liquid-glass rounded-3xl p-5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${item.accent}`}>
+                    <Icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-zinc-900">{item.title}</p>
-                    <p className="text-[11px] text-zinc-400 font-medium">{item.description}</p>
-                    <span className="text-[10px] font-extrabold text-emerald-600 mt-1 inline-block">
-                      {item.costAP} AP
+                    <h2 className="text-sm font-bold text-zinc-900">{item.name}</h2>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">
+                      {item.benefit}
                     </span>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleRedeem(item)}
-                  disabled={redeemingId === item.id || !canAfford || isLocked}
-                  className={`py-2 px-3.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
-                    isLocked || !canAfford
-                      ? "bg-zinc-100 text-zinc-400 cursor-not-allowed border border-zinc-200"
-                      : "bg-zinc-900 hover:bg-zinc-800 text-white cursor-pointer"
-                  }`}
-                >
-                  {redeemingId === item.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : isLocked ? (
-                    <>
-                      <Lock className="w-3 h-3" />
-                      <span>Locked</span>
-                    </>
-                  ) : (
-                    <span>Claim</span>
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Historical Redemptions */}
-      {redemptions.length > 0 && (
-        <div className="space-y-3 pt-2">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
-            Redemption History
-          </p>
-
-          <div className="space-y-2">
-            {redemptions.map((redemption) => (
-              <div
-                key={redemption.id}
-                className="liquid-glass rounded-2xl p-3.5 border border-white/80 shadow-sm backdrop-blur-md bg-white/60 flex items-center justify-between text-xs"
-              >
-                <div>
-                  <p className="font-bold text-zinc-800">{redemption.title}</p>
-                  <p className="text-[10px] text-zinc-400 font-medium">
-                    {new Date(redemption.created_at).toLocaleDateString()}
-                  </p>
-                </div>
                 <div className="text-right">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                      redemption.status === "delivered"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {redemption.status}
+                  <span className="text-sm font-black text-zinc-900 flex items-center gap-1 justify-end">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+                    {item.cost}
                   </span>
-                  {redemption.voucher_code && (
-                    <p className="text-[10px] font-mono font-bold text-zinc-600 mt-1">
-                      {redemption.voucher_code}
-                    </p>
-                  )}
+                  <span className="text-[10px] font-bold text-zinc-400">AP</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+
+              <p className="text-xs text-zinc-600 font-medium leading-relaxed">
+                {item.description}
+              </p>
+
+              <button
+                onClick={() => handlePurchase(item)}
+                disabled={!isAffordable || isBuying}
+                className={`w-full py-3 rounded-2xl font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isAffordable
+                    ? "bg-zinc-900 hover:bg-zinc-800 text-white"
+                    : "bg-zinc-200 text-zinc-500 shadow-none"
+                }`}
+              >
+                {isBuying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Transacting...</span>
+                  </>
+                ) : isAffordable ? (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>Redeem Item ({item.cost} AP)</span>
+                  </>
+                ) : (
+                  <span>Need {item.cost - (profile?.aura_points || 0)} More AP</span>
+                )}
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
