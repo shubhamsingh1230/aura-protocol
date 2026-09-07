@@ -144,7 +144,7 @@ export default function OnboardingPage() {
     setStep("stake");
   }
 
-  async function handleStakeSuccess() {
+ async function handleStakeSuccess() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.replace("/dashboard");
@@ -154,7 +154,7 @@ export default function OnboardingPage() {
     const trialEnds = new Date();
     trialEnds.setDate(trialEnds.getDate() + 7);
 
-    // 1. Credit starting operator assets: 1 shield, 50 AP, active pass, initial streaks
+    // 1. Credit starting operator assets & mark onboarding as completed permanently
     await supabase
       .from("profiles")
       .update({
@@ -164,6 +164,7 @@ export default function OnboardingPage() {
         aura_points: 50,
         current_streak: 1,
         longest_streak: 1,
+        onboarding_completed: true, // <--- THIS LINE FIXES THE LOOP FOREVER
       })
       .eq("id", user.id);
 
