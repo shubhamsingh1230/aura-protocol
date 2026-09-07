@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   }
 
   // Default destination is arena, but we will check below if they need onboarding
-  let destination = "/arena";
+let destination = "/dashboard";
   const response = NextResponse.redirect(`${origin}${destination}`);
 
   const supabase = createServerClient(
