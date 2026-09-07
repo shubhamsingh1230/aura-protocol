@@ -10,10 +10,7 @@ import {
   Shield, 
   Users, 
   Crown, 
-  Medal, 
-  Loader2, 
-  ArrowUpRight,
-  Target
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 
@@ -105,18 +102,18 @@ export default function ArenaPage() {
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
             Season 1 Active
           </span>
-          <span className="text-xs text-zinc-400 font-bold">Midnight UTC Reset</span>
+          <span className="text-xs text-zinc-500 font-bold">Midnight UTC Reset</span>
         </div>
         <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">The Arena</h1>
-        <p className="text-zinc-500 text-sm font-medium">Quantified Leaderboard & Stake Pool</p>
+        <p className="text-zinc-600 text-sm font-medium">Quantified Leaderboard & Stake Pool</p>
       </div>
 
       {/* Scope Switcher: Global vs Squad */}
-      <div className="liquid-glass rounded-2xl p-1.5 flex gap-1 border border-white/80 shadow-sm bg-zinc-200/50 backdrop-blur-md">
+      <div className="liquid-glass rounded-2xl p-1.5 flex gap-1">
         <button
           onClick={() => setScope("global")}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            scope === "global" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
+            scope === "global" ? "bg-white/40 text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
           }`}
         >
           <Trophy className="w-3.5 h-3.5 text-amber-500" />
@@ -125,7 +122,7 @@ export default function ArenaPage() {
         <button
           onClick={() => setScope("squad")}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-            scope === "squad" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
+            scope === "squad" ? "bg-white/40 text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
           }`}
         >
           <Users className="w-3.5 h-3.5 text-emerald-600" />
@@ -134,10 +131,13 @@ export default function ArenaPage() {
       </div>
 
       {/* Skin-in-the-Game Stake Pool Card */}
-      <div className="liquid-glass rounded-3xl p-5 border border-amber-500/20 bg-amber-500/5 backdrop-blur-xl space-y-3">
+      <div className="liquid-glass rounded-3xl p-5 space-y-3 relative overflow-hidden">
+        {/* Subtle amber glow inside the glass */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -z-10" />
+        
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Crown className="w-4 h-4 text-amber-500" />
+            <Crown className="w-4 h-4 text-amber-600" />
             <span className="text-xs font-bold text-zinc-900">Weekly Community Pool</span>
           </div>
           <span className="text-xs font-extrabold text-amber-700 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
@@ -145,21 +145,21 @@ export default function ArenaPage() {
           </span>
         </div>
 
-        <p className="text-xs text-zinc-600 font-medium leading-relaxed">
+        <p className="text-xs text-zinc-700 font-medium leading-relaxed">
           Funded by the ₹10 weekly commitment. Operators who hit ≥85% compliance preserve their stake. The remainder is unlocked by the podium leaders.
         </p>
 
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-amber-500/10 text-center">
-          <div className="p-2 rounded-xl bg-white/70">
-            <p className="text-[9px] font-bold text-zinc-400 uppercase">1st Place</p>
+        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-200/50 text-center">
+          <div className="p-2 rounded-xl bg-white/30 border border-white/40">
+            <p className="text-[9px] font-bold text-zinc-500 uppercase">1st Place</p>
             <p className="text-xs font-black text-amber-600">50% Pool</p>
           </div>
-          <div className="p-2 rounded-xl bg-white/70">
-            <p className="text-[9px] font-bold text-zinc-400 uppercase">2nd Place</p>
+          <div className="p-2 rounded-xl bg-white/30 border border-white/40">
+            <p className="text-[9px] font-bold text-zinc-500 uppercase">2nd Place</p>
             <p className="text-xs font-black text-zinc-700">30% Pool</p>
           </div>
-          <div className="p-2 rounded-xl bg-white/70">
-            <p className="text-[9px] font-bold text-zinc-400 uppercase">3rd Place</p>
+          <div className="p-2 rounded-xl bg-white/30 border border-white/40">
+            <p className="text-[9px] font-bold text-zinc-500 uppercase">3rd Place</p>
             <p className="text-xs font-black text-amber-800">20% Pool</p>
           </div>
         </div>
@@ -168,7 +168,7 @@ export default function ArenaPage() {
       {loading ? (
         <div className="pt-16 text-center flex flex-col items-center justify-center space-y-2">
           <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-          <p className="text-xs text-zinc-400 font-medium">Auditing Arena Scores...</p>
+          <p className="text-xs text-zinc-500 font-medium">Auditing Arena Scores...</p>
         </div>
       ) : (
         <>
@@ -177,12 +177,12 @@ export default function ArenaPage() {
             <div className="grid grid-cols-3 gap-2 items-end pt-4 pb-2">
               {/* 2nd Place */}
               {topThree[1] && (
-                <div className="liquid-glass rounded-3xl p-3 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 flex flex-col items-center text-center space-y-2 h-36 justify-between">
+                <div className="liquid-glass rounded-3xl p-3 flex flex-col items-center text-center space-y-2 h-36 justify-between">
                   <div className="relative">
                     <div className="w-11 h-11 rounded-2xl bg-zinc-200 text-zinc-800 flex items-center justify-center font-black text-sm">
                       {(topThree[1].handle || "O").charAt(0).toUpperCase()}
                     </div>
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zinc-300 text-zinc-800 font-black text-[10px] flex items-center justify-center border-2 border-white">
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-zinc-300 text-zinc-800 font-black text-[10px] flex items-center justify-center border-2 border-white/50">
                       2
                     </span>
                   </div>
@@ -192,7 +192,7 @@ export default function ArenaPage() {
                     </p>
                     <p className="text-[10px] font-black text-emerald-600">{topThree[1].aura_points} AP</p>
                   </div>
-                  <span className="text-[9px] font-bold text-zinc-400 flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-zinc-500 flex items-center gap-0.5">
                     <Flame className="w-3 h-3 text-orange-500" />
                     {topThree[1].current_streak}d
                   </span>
@@ -201,7 +201,7 @@ export default function ArenaPage() {
 
               {/* 1st Place Champion */}
               {topThree[0] && (
-                <div className="liquid-glass rounded-3xl p-3 border border-amber-500/30 shadow-md backdrop-blur-xl bg-white/80 flex flex-col items-center text-center space-y-2 h-44 justify-between relative overflow-hidden">
+                <div className="liquid-glass rounded-3xl p-3 flex flex-col items-center text-center space-y-2 h-44 justify-between relative overflow-hidden !border-amber-400/40">
                   <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-400 to-amber-600" />
                   <div className="relative">
                     <div className="w-13 h-13 rounded-2xl bg-zinc-900 text-amber-400 flex items-center justify-center font-black text-base shadow-md">
@@ -225,12 +225,12 @@ export default function ArenaPage() {
 
               {/* 3rd Place */}
               {topThree[2] && (
-                <div className="liquid-glass rounded-3xl p-3 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 flex flex-col items-center text-center space-y-2 h-32 justify-between">
+                <div className="liquid-glass rounded-3xl p-3 flex flex-col items-center text-center space-y-2 h-32 justify-between">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center font-black text-xs">
                       {(topThree[2].handle || "O").charAt(0).toUpperCase()}
                     </div>
-                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-600 text-white font-black text-[10px] flex items-center justify-center border-2 border-white">
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-600 text-white font-black text-[10px] flex items-center justify-center border-2 border-white/50">
                       3
                     </span>
                   </div>
@@ -240,7 +240,7 @@ export default function ArenaPage() {
                     </p>
                     <p className="text-[10px] font-black text-emerald-600">{topThree[2].aura_points} AP</p>
                   </div>
-                  <span className="text-[9px] font-bold text-zinc-400 flex items-center gap-0.5">
+                  <span className="text-[9px] font-bold text-zinc-500 flex items-center gap-0.5">
                     <Flame className="w-3 h-3 text-orange-500" />
                     {topThree[2].current_streak}d
                   </span>
@@ -251,15 +251,15 @@ export default function ArenaPage() {
 
           {/* STANDINGS LIST (Ranks 4+) */}
           <div className="space-y-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 px-1">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500 px-1">
               Active Arena Standings ({operators.length})
             </h2>
 
             {operators.length === 0 ? (
-              <div className="liquid-glass p-8 rounded-3xl text-center space-y-2 border border-white/80 bg-white/60">
-                <Shield className="w-8 h-8 text-zinc-300 mx-auto" />
+              <div className="liquid-glass p-8 rounded-3xl text-center space-y-2">
+                <Shield className="w-8 h-8 text-zinc-400 mx-auto" />
                 <p className="text-sm font-bold text-zinc-800">No operators in this circle</p>
-                <p className="text-xs text-zinc-400">Invite squad members to populate this leaderboard.</p>
+                <p className="text-xs text-zinc-500">Invite squad members to populate this leaderboard.</p>
               </div>
             ) : (
               restOperators.map((op, idx) => {
@@ -269,14 +269,12 @@ export default function ArenaPage() {
                 return (
                   <div
                     key={op.id}
-                    className={`liquid-glass rounded-2xl p-3.5 border transition-all flex items-center justify-between backdrop-blur-xl ${
-                      isCurrentUser
-                        ? "bg-emerald-500/10 border-emerald-500/40 shadow-sm"
-                        : "bg-white/70 border-white/80"
+                    className={`liquid-glass rounded-2xl p-3.5 flex items-center justify-between transition-all ${
+                      isCurrentUser ? "!border-emerald-500/40 shadow-sm" : ""
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="w-6 text-center text-xs font-black text-zinc-400 tabular-nums">
+                      <span className="w-6 text-center text-xs font-black text-zinc-500 tabular-nums">
                         #{rankNumber}
                       </span>
                       <div className="w-9 h-9 rounded-xl bg-zinc-900 text-white flex items-center justify-center font-bold text-xs">
@@ -297,7 +295,7 @@ export default function ArenaPage() {
                           <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded border ${getRankBadgeColor(op.identity_rank)}`}>
                             {op.identity_rank || "Initiate"}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">
+                          <span className="text-[10px] text-zinc-500 font-medium">
                             • {op.current_streak || 0}d streak
                           </span>
                         </div>
@@ -309,7 +307,7 @@ export default function ArenaPage() {
                         <Sparkles className="w-3 h-3 text-emerald-500" />
                         {op.aura_points}
                       </span>
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase">AP Score</span>
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase">AP Score</span>
                     </div>
                   </div>
                 );
