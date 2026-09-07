@@ -3,286 +3,273 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { 
   Shield, 
   Flame, 
   Sparkles, 
   Award, 
-  Calendar, 
+  CreditCard, 
+  LogOut, 
+  Copy, 
+  Check, 
   Loader2, 
-  CheckCircle2, 
-  AlertCircle,
-  Plus
+  Calendar,
+  ExternalLink,
+  Zap,
+  CheckCircle2,
+  RefreshCw
 } from "lucide-react";
 
 interface ProfileData {
   id: string;
-  full_name: string | null;
   handle: string | null;
+  full_name: string | null;
+  email: string | null;
   aura_points: number;
   xp: number;
-  identity_rank: string;
   current_streak: number;
+  longest_streak: number;
   streak_shields: number;
+  identity_rank: string;
   subscription_status: string;
+  trial_ends_at: string | null;
+  movement_label: string | null;
+  grind_label: string | null;
 }
 
-const RANK_TIERS = [
-  { name: "Initiate", minAP: 0, maxAP: 199 },
-  { name: "Disciplined", minAP: 200, maxAP: 499 },
-  { name: "Operator", minAP: 500, maxAP: 999 },
-  { name: "Elite", minAP: 1000, maxAP: 1999 },
-  { name: "Apex", minAP: 2000, maxAP: Infinity },
+const RANK_THRESHOLDS = [
+  { rank: "Initiate", min: 0, next: 200 },
+  { rank: "Disciplined", min: 200, next: 500 },
+  { rank: "Operator", min: 500, next: 1000 },
+  { rank: "Elite", min: 1000, next: 2000 },
+  { rank: "Apex", min: 2000, next: 2000 },
 ];
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [activityMap, setActivityMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
-  const [shieldLoading, setShieldLoading] = useState(false);
-  const [banner, setBanner] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
-    loadProfileAndActivity();
+    loadDossier();
   }, []);
 
-  async function loadProfileAndActivity() {
+  async function loadDossier() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
-    // 1. Fetch profile metrics
-    const { data: profileData } = await supabase
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    const { data } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .single();
 
-    setProfile(profileData);
-
-    // 2. Fetch activity posts from the past 90 days for the Contribution Matrix
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    const { data: postsData } = await supabase
-      .from("posts")
-      .select("created_at")
-      .eq("user_id", user.id)
-      .gte("created_at", ninetyDaysAgo.toISOString());
-
-    // Aggregate post counts per calendar date (YYYY-MM-DD)
-    const counts: Record<string, number> = {};
-    (postsData || []).forEach((post) => {
-      const dateKey = new Date(post.created_at).toISOString().split("T")[0];
-      counts[dateKey] = (counts[dateKey] || 0) + 1;
-    });
-
-    setActivityMap(counts);
+    setProfile(data);
     setLoading(false);
   }
 
-  async function handleBuyShield() {
-    if (!profile) return;
-    setBanner(null);
+  function handleCopyInvite() {
+    const handle = profile?.handle || "operator";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const inviteUrl = `${origin}/invite/${handle}`;
 
-    const SHIELD_COST = 150; // 150 AP per Streak Freeze
-
-    if ((profile.aura_points || 0) < SHIELD_COST) {
-      setBanner({
-        text: `Insufficient AP. You need ${SHIELD_COST - profile.aura_points} more Aura Points to purchase a Streak Shield.`,
-        type: "error",
-      });
-      return;
-    }
-
-    setShieldLoading(true);
-
-    const newPoints = profile.aura_points - SHIELD_COST;
-    const newShields = (profile.streak_shields || 0) + 1;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        aura_points: newPoints,
-        streak_shields: newShields,
-      })
-      .eq("id", profile.id);
-
-    if (error) {
-      setBanner({ text: `Failed to acquire shield: ${error.message}`, type: "error" });
-    } else {
-      setProfile((prev) => prev ? { ...prev, aura_points: newPoints, streak_shields: newShields } : null);
-      setBanner({ text: "Streak Shield activated! Your streak is secured against unexpected skips.", type: "success" });
-    }
-
-    setShieldLoading(false);
+    navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   }
 
-  if (loading) {
-    return (
-      <div className="pt-24 text-center flex flex-col items-center justify-center space-y-2">
-        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-        <p className="text-xs text-zinc-400 font-medium">Rendering Operator Dossier...</p>
-      </div>
-    );
+  async function handleSignOut() {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    router.replace("/login");
   }
 
   // Calculate Rank Progression Percentage
   const currentAP = profile?.aura_points || 0;
-  const currentTier = RANK_TIERS.find((t) => currentAP >= t.minAP && currentAP <= t.maxAP) || RANK_TIERS[0];
-  const nextTier = RANK_TIERS[RANK_TIERS.indexOf(currentTier) + 1];
-  
-  const progressPercent = nextTier 
-    ? Math.min(100, Math.round(((currentAP - currentTier.minAP) / (nextTier.minAP - currentTier.minAP)) * 100))
-    : 100;
-
-  // Generate 84 days (12 weeks) for the Heatmap Matrix
-  const matrixDays = Array.from({ length: 84 }).map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (83 - i));
-    const key = d.toISOString().split("T")[0];
-    return {
-      date: key,
-      count: activityMap[key] || 0,
-    };
-  });
+  const currentTier = RANK_THRESHOLDS.find((t) => t.rank === (profile?.identity_rank || "Initiate")) || RANK_THRESHOLDS[0];
+  const isMaxTier = currentTier.rank === "Apex";
+  const pointsIntoTier = Math.max(0, currentAP - currentTier.min);
+  const tierSpan = currentTier.next - currentTier.min;
+  const rankProgress = isMaxTier ? 100 : Math.min(100, Math.round((pointsIntoTier / tierSpan) * 100));
 
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
-      {/* Profile Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Operator File</h1>
-          <p className="text-zinc-500 text-sm font-medium">@{profile?.handle || "unassigned"}</p>
-        </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-          profile?.subscription_status === 'active' 
-            ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/20' 
-            : 'bg-zinc-200 text-zinc-600'
-        }`}>
-          {profile?.subscription_status === 'active' ? 'Active Pass' : 'Trialing'}
-        </span>
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Operator Dossier</h1>
+        <p className="text-zinc-500 text-sm font-medium">Quantified Status & Protocol Credentials</p>
       </div>
 
-      {/* Banner Feedback */}
-      {banner && (
-        <div className={`p-4 rounded-2xl text-xs font-bold border flex items-start gap-2.5 ${
-          banner.type === "success"
-            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-            : "bg-red-50 border-red-200 text-red-600"
-        }`}>
-          {banner.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> : <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />}
-          <span>{banner.text}</span>
+      {loading ? (
+        <div className="pt-24 text-center flex flex-col items-center justify-center space-y-2">
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+          <p className="text-xs text-zinc-400 font-medium">Decrypting Dossier Credentials...</p>
         </div>
+      ) : (
+        <>
+          {/* Identity Header Card */}
+          <div className="liquid-glass rounded-3xl p-6 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-zinc-900 text-white flex items-center justify-center font-black text-lg shadow-md">
+                  {(profile?.handle || "O").charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-zinc-900 leading-tight">
+                    {profile?.full_name || profile?.handle}
+                  </h2>
+                  <p className="text-xs font-mono text-zinc-400 font-bold">
+                    @{profile?.handle || "operator"}
+                  </p>
+                  <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                    <Shield className="w-3 h-3 text-emerald-600" />
+                    {profile?.identity_rank || "Initiate"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCopyInvite}
+                className="p-2.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition-all text-xs font-bold flex items-center gap-1 cursor-pointer"
+                title="Copy Invite Link"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-zinc-500" />}
+              </button>
+            </div>
+
+            {/* Rank Elevation Progress Bar */}
+            <div className="pt-2 space-y-1.5 border-t border-zinc-100">
+              <div className="flex items-center justify-between text-[11px] font-bold">
+                <span className="text-zinc-500">Tier Ascension</span>
+                <span className="text-zinc-900">
+                  {isMaxTier ? "Apex Status Reached" : `${currentAP} / ${currentTier.next} AP`}
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-zinc-100 overflow-hidden">
+                <div
+                  className="h-full bg-zinc-900 rounded-full transition-all duration-500"
+                  style={{ width: `${rankProgress}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Key Metric Bento Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-orange-600">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span>Streak Record</span>
+              </div>
+              <p className="text-2xl font-black tabular-nums text-zinc-900">
+                {profile?.current_streak || 0}d
+              </p>
+              <p className="text-[10px] text-zinc-400 font-semibold">
+                Personal Best: {profile?.longest_streak || 0}d
+              </p>
+            </div>
+
+            <div className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600">
+                <Shield className="w-4 h-4 text-blue-500" />
+                <span>Active Shields</span>
+              </div>
+              <p className="text-2xl font-black tabular-nums text-zinc-900">
+                {profile?.streak_shields || 0}
+              </p>
+              <p className="text-[10px] text-zinc-400 font-semibold">
+                Auto-defense against skips
+              </p>
+            </div>
+          </div>
+
+          {/* Operator Pass / Subscription Card */}
+          <div className="liquid-glass rounded-3xl p-5 border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-zinc-900">Weekly Operator Pass</span>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold capitalize ${
+                profile?.subscription_status === "active"
+                  ? "bg-emerald-500/20 text-emerald-800"
+                  : "bg-amber-500/20 text-amber-800"
+              }`}>
+                {profile?.subscription_status || "Trialing"}
+              </span>
+            </div>
+
+            <p className="text-xs text-zinc-600 font-medium leading-relaxed">
+              {profile?.subscription_status === "active"
+                ? "Your ₹10 weekly commitment is live. Full protocol verification, arena ranking, and store redemptions are unlocked."
+                : "You are currently running on your 7-day trial pass. Activate the ₹10 weekly stake to preserve streaks and leaderboard status."}
+            </p>
+
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-medium">
+                <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                <span>
+                  {profile?.trial_ends_at
+                    ? `Next Renewal: ${new Date(profile.trial_ends_at).toLocaleDateString([], { month: "short", day: "numeric" })}`
+                    : "No renewal scheduled"}
+                </span>
+              </div>
+
+              <Link
+                href="/checkout"
+                className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1"
+              >
+                <span>Manage</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Pillar Calibrations */}
+          <div className="liquid-glass rounded-3xl p-5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-3">
+            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              Calibrated Disciplines
+            </p>
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/60">
+                <span className="font-semibold text-zinc-500">Movement Target</span>
+                <span className="font-bold text-zinc-900">{profile?.movement_label || "Physical Training"}</span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 border border-zinc-200/60">
+                <span className="font-semibold text-zinc-500">Grind Focus</span>
+                <span className="font-bold text-zinc-900">{profile?.grind_label || "Client Deep Work"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Account Logout Action */}
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="w-full py-3.5 rounded-2xl bg-zinc-100 hover:bg-rose-50 text-zinc-600 hover:text-rose-600 border border-zinc-200 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {signingOut ? (
+              <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+            ) : (
+              <>
+                <LogOut className="w-4 h-4" />
+                <span>Disconnect Operator Session</span>
+              </>
+            )}
+          </button>
+        </>
       )}
-
-      {/* Identity & Rank Dossier Card */}
-      <div className="liquid-glass rounded-3xl p-5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-zinc-900 text-white flex items-center justify-center font-bold text-sm shadow-md">
-              <Award className="w-6 h-6 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Current Rank</p>
-              <h2 className="text-xl font-extrabold text-zinc-900">{currentTier.name}</h2>
-            </div>
-          </div>
-          <div className="text-right">
-            <span className="text-2xl font-black text-zinc-900">{currentAP}</span>
-            <span className="text-xs font-bold text-emerald-600 ml-1">AP</span>
-          </div>
-        </div>
-
-        {/* Level Progression Progress Bar */}
-        <div className="space-y-1.5 pt-2">
-          <div className="flex justify-between text-[11px] font-bold text-zinc-400">
-            <span>Progress to {nextTier ? nextTier.name : "Apex Peak"}</span>
-            <span>{progressPercent}%</span>
-          </div>
-          <div className="w-full h-2.5 bg-zinc-100 rounded-full overflow-hidden p-0.5 border border-zinc-200/60">
-            <div 
-              className="h-full bg-emerald-500 rounded-full transition-all duration-500 shadow-sm" 
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Vital Metrics: Streak & Shields */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Discipline</span>
-            <Flame className="w-4 h-4 text-orange-500" />
-          </div>
-          <div>
-            <div className="text-2xl font-black text-zinc-900">{profile?.current_streak || 0}</div>
-            <p className="text-[10px] text-zinc-400 font-medium">Consecutive Active Days</p>
-          </div>
-        </div>
-
-        <div className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 flex flex-col justify-between space-y-2">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Streak Shields</span>
-            <Shield className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="text-2xl font-black text-zinc-900">{profile?.streak_shields || 0}</div>
-              <p className="text-[10px] text-zinc-400 font-medium">Active Shields</p>
-            </div>
-            <button
-              onClick={handleBuyShield}
-              disabled={shieldLoading}
-              className="p-2 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all cursor-pointer shadow-sm disabled:opacity-50"
-              title="Acquire Shield (150 AP)"
-            >
-              {shieldLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* GitHub-Style Contribution Heatmap Matrix */}
-      <div className="liquid-glass rounded-3xl p-5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-zinc-400" />
-            <span className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Proof of Work Matrix</span>
-          </div>
-          <span className="text-[10px] text-zinc-400 font-medium">Last 12 Weeks</span>
-        </div>
-
-        {/* 12-column x 7-row Matrix Grid */}
-        <div className="grid grid-flow-col grid-rows-7 gap-1.5 pt-1 overflow-x-auto py-2">
-          {matrixDays.map((day) => {
-            let colorClass = "bg-zinc-100 border-zinc-200/50";
-            if (day.count === 1) colorClass = "bg-emerald-200 border-emerald-300";
-            else if (day.count === 2) colorClass = "bg-emerald-400 border-emerald-500";
-            else if (day.count >= 3) colorClass = "bg-emerald-600 border-emerald-700 shadow-sm";
-
-            return (
-              <div
-                key={day.date}
-                title={`${day.date}: ${day.count} proofs submitted`}
-                className={`w-3.5 h-3.5 rounded-md border ${colorClass} transition-colors`}
-              />
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-end gap-1.5 text-[10px] text-zinc-400 font-medium pt-1">
-          <span>Less</span>
-          <div className="w-2.5 h-2.5 rounded bg-zinc-100 border border-zinc-200/50" />
-          <div className="w-2.5 h-2.5 rounded bg-emerald-200" />
-          <div className="w-2.5 h-2.5 rounded bg-emerald-400" />
-          <div className="w-2.5 h-2.5 rounded bg-emerald-600" />
-          <span>More</span>
-        </div>
-      </div>
     </div>
   );
 }
