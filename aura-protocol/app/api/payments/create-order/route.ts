@@ -23,9 +23,8 @@ export async function POST(request: Request) {
     const amountInr = (body as any).amountInr || 10;
 
     // 3. Verify Razorpay credentials
-    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
+   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
+const keySecret = process.env.RAZORPAY_KEY_SECRET;
     if (!keyId || !keySecret) {
       return NextResponse.json(
         { error: "Razorpay credentials are not configured in environment variables" },
