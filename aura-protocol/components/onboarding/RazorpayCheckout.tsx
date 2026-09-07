@@ -43,7 +43,7 @@ export default function RazorpayCheckout({
       if (!user) throw new Error("Operator authentication expired.");
 
       // 1. Create order on server
-      const orderRes = await fetch("/api/razorpay/order", {
+      const orderRes = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amountInr }),
