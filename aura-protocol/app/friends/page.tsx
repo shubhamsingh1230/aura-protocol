@@ -20,7 +20,8 @@ import {
   Plus,
   Target,
   Swords,
-  Globe
+  Globe,
+  Upload
 } from "lucide-react";
 
 interface Profile {
@@ -45,7 +46,16 @@ interface Arena {
   creator_id: string;
 }
 
-// 7-Day Universal Task Deck (General Public & Elementarily Verifiable)
+interface Bounty {
+  id: string;
+  task_title: string;
+  ap_stake: number;
+  status: "pending_acceptance" | "active" | "completed" | "failed" | "declined";
+  challenger_id: string;
+  target_id: string;
+  proof_url: string | null;
+}
+
 const DAILY_TASKS = [
   { day: 1, title: "10,000 Step Threshold", verification: "Step counter app screenshot" },
   { day: 2, title: "3 Liters Water Protocol", verification: "Timestamped water bottle photo" },
@@ -65,7 +75,6 @@ export default function FriendsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [nudgedMap, setNudgedMap] = useState<Record<string, boolean>>({});
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Arena States
@@ -73,10 +82,12 @@ export default function FriendsPage() {
   const [newArenaName, setNewArenaName] = useState("");
   const [selectedArena, setSelectedArena] = useState<Arena | null>(null);
   const [arenaMembers, setArenaMembers] = useState<any[]>([]);
-  const [bounties, setBounties] = useState<any[]>([]);
+  const [bounties, setBounties] = useState<Bounty[]>([]);
   const [bountyTarget, setBountyTarget] = useState("");
   const [bountyWager, setBountyWager] = useState(20);
   const [bountyTask, setBountyTask] = useState("50 Pushups / Timed Video Proof");
+  const [proofInput, setProofInput] = useState<Record<string, string>>({});
+  const [bountyLoadingId, setBountyLoadingId] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -90,7 +101,6 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 1. Fetch current operator profile (including dual-ledger AP)
     const { data: profileData } = await supabase
       .from("profiles")
       .select("id, full_name, handle, earned_ap, vault_ap, identity_rank, current_streak")
@@ -99,7 +109,6 @@ export default function FriendsPage() {
 
     setMyProfile(profileData);
 
-    // 2. Fetch friendships
     const { data: connections } = await supabase
       .from("friendships")
       .select("id, user_id, friend_id, status")
@@ -126,8 +135,8 @@ export default function FriendsPage() {
         .in("id", allPartnerIds);
 
       const profileMap = new Map((memberProfiles || []).map((p) => [p.id, p]));
-
       const todayDate = new Date().toISOString().split("T")[0];
+
       const { data: todayLogs } = await supabase
         .from("daily_logs")
         .select("user_id, gym_done, editing_done, meals_logged, workout, deep_work")
@@ -153,11 +162,7 @@ export default function FriendsPage() {
           (log?.meals_logged || 0) >= 3
         );
 
-        return {
-          friendshipId: item.friendshipId,
-          profile,
-          todayCompleted: isDone,
-        };
+        return { friendshipId: item.friendshipId, profile, todayCompleted: isDone };
       });
 
       const mappedRequests: FriendItem[] = pendingPairs.map((item) => ({
@@ -187,9 +192,7 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data } = await supabase
-      .from("arenas")
-      .select("id, name, creator_id");
+    const { data } = await supabase.from("arenas").select("id, name, creator_id");
     if (data) setArenas(data);
   }
 
@@ -210,9 +213,7 @@ export default function FriendsPage() {
   function handleCopyInviteLink() {
     const handle = myProfile?.handle || "operator";
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const inviteUrl = `${origin}/invite/${handle}`;
-
-    navigator.clipboard.writeText(inviteUrl);
+    navigator.clipboard.writeText(`${origin}/invite/${handle}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
@@ -228,7 +229,6 @@ export default function FriendsPage() {
     if (!user) return;
 
     const cleanHandle = searchHandle.trim().replace(/^@/, "").toLowerCase();
-
     if (cleanHandle === (myProfile?.handle || "").toLowerCase()) {
       setMessage({ text: "You cannot add yourself to your squad.", type: "error" });
       setActionLoading(false);
@@ -243,21 +243,6 @@ export default function FriendsPage() {
 
     if (searchError || !targetProfile) {
       setMessage({ text: `No operator found with handle @${cleanHandle}`, type: "error" });
-      setActionLoading(false);
-      return;
-    }
-
-    const { data: existing } = await supabase
-      .from("friendships")
-      .select("id, status")
-      .or(`and(user_id.eq.${user.id},friend_id.eq.${targetProfile.id}),and(user_id.eq.${targetProfile.id},friend_id.eq.${user.id})`)
-      .maybeSingle();
-
-    if (existing) {
-      setMessage({
-        text: existing.status === "accepted" ? "Already in your squad." : "Friend request is already pending.",
-        type: "error",
-      });
       setActionLoading(false);
       return;
     }
@@ -278,7 +263,6 @@ export default function FriendsPage() {
         message: `👥 Squad Summons: @${myProfile?.handle || "An operator"} sent you a squad invitation.`,
         is_read: false,
       });
-
       setMessage({ text: `Request sent to @${cleanHandle}!`, type: "success" });
       setSearchHandle("");
     }
@@ -290,11 +274,7 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (accept) {
-      await supabase
-        .from("friendships")
-        .update({ status: "accepted" })
-        .eq("id", friendshipId);
-
+      await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId);
       if (user) {
         await supabase.from("notifications").insert({
           user_id: senderId,
@@ -325,7 +305,6 @@ export default function FriendsPage() {
       .single();
 
     if (!error && data) {
-      // Automatically add creator to arena members
       await supabase.from("arena_members").insert({ arena_id: data.id, user_id: user.id });
       setNewArenaName("");
       fetchArenas();
@@ -338,19 +317,16 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Check if user has enough vault AP
     if ((myProfile?.vault_ap || 0) < bountyWager) {
       alert("Insufficient Vault AP for this wager.");
       return;
     }
 
-    // Escrow: Deduct vault AP from challenger
     await supabase
       .from("profiles")
       .update({ vault_ap: (myProfile?.vault_ap || 0) - bountyWager })
       .eq("id", user.id);
 
-    // Create bounty
     await supabase.from("arena_bounties").insert({
       arena_id: selectedArena.id,
       challenger_id: user.id,
@@ -362,6 +338,39 @@ export default function FriendsPage() {
 
     fetchArenaDetails(selectedArena.id);
     alert("Bounty deployed successfully into escrow!");
+  }
+
+  // Bounty Actions
+  async function handleAcceptBounty(bountyId: string) {
+    setBountyLoadingId(bountyId);
+    await supabase.from("arena_bounties").update({ status: "active" }).eq("id", bountyId);
+    if (selectedArena) fetchArenaDetails(selectedArena.id);
+    setBountyLoadingId(null);
+  }
+
+  async function handleDeclineBounty(bountyId: string, challengerId: string, stake: number) {
+    setBountyLoadingId(bountyId);
+    const { data: challenger } = await supabase.from("profiles").select("vault_ap").eq("id", challengerId).single();
+    if (challenger) {
+      await supabase.from("profiles").update({ vault_ap: (challenger.vault_ap || 0) + stake }).eq("id", challengerId);
+    }
+    await supabase.from("arena_bounties").update({ status: "declined" }).eq("id", bountyId);
+    if (selectedArena) fetchArenaDetails(selectedArena.id);
+    setBountyLoadingId(null);
+  }
+
+  async function handleSubmitProof(bounty: Bounty) {
+    const url = proofInput[bounty.id];
+    if (!url) return;
+    setBountyLoadingId(bounty.id);
+
+    await supabase.from("arena_bounties").update({ status: "completed", proof_url: url }).eq("id", bounty.id);
+    const { data: targetProfile } = await supabase.from("profiles").select("vault_ap").eq("id", bounty.target_id).single();
+    if (targetProfile) {
+      await supabase.from("profiles").update({ vault_ap: (targetProfile.vault_ap || 0) + bounty.ap_stake }).eq("id", bounty.target_id);
+    }
+    if (selectedArena) fetchArenaDetails(selectedArena.id);
+    setBountyLoadingId(null);
   }
 
   return (
@@ -382,7 +391,7 @@ export default function FriendsPage() {
         </button>
       </div>
 
-      {/* Vault AP Banner (Dual-Ledger Isolation) */}
+      {/* Vault AP Banner */}
       <div className="liquid-glass rounded-2xl p-4 border border-white/80 bg-gradient-to-r from-zinc-900 to-zinc-800 text-white flex items-center justify-between shadow-md">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">P2P Arena Vault Balance</p>
@@ -398,25 +407,19 @@ export default function FriendsPage() {
       <div className="liquid-glass rounded-2xl p-1.5 flex gap-1 border border-white/80 shadow-sm bg-zinc-200/50 backdrop-blur-md">
         <button
           onClick={() => setActiveTab("squad")}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === "squad" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
-          }`}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === "squad" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
         >
           Squad ({friends.length})
         </button>
         <button
           onClick={() => setActiveTab("arenas")}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === "arenas" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
-          }`}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === "arenas" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
         >
           Arenas
         </button>
         <button
           onClick={() => setActiveTab("requests")}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all relative ${
-            activeTab === "requests" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
-          }`}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all relative ${activeTab === "requests" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
         >
           Requests
           {pendingRequests.length > 0 && (
@@ -427,15 +430,12 @@ export default function FriendsPage() {
         </button>
         <button
           onClick={() => setActiveTab("add")}
-          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === "add" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
-          }`}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${activeTab === "add" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
         >
           Add
         </button>
       </div>
 
-      {/* Main Content Area */}
       {loading ? (
         <div className="pt-16 text-center flex flex-col items-center justify-center space-y-2">
           <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
@@ -443,7 +443,6 @@ export default function FriendsPage() {
         </div>
       ) : (
         <>
-          {/* Tab 1: Squad List */}
           {activeTab === "squad" && (
             <div className="space-y-3">
               {friends.length > 0 ? (
@@ -492,7 +491,6 @@ export default function FriendsPage() {
             </div>
           )}
 
-          {/* Tab 2: Custom Arenas & Bounties */}
           {activeTab === "arenas" && (
             <div className="space-y-4">
               {!selectedArena ? (
@@ -546,7 +544,7 @@ export default function FriendsPage() {
                     </div>
                   </div>
 
-                  {/* Issue Zero-Sum Bounty */}
+                  {/* Issue Zero-Sum Bounty Form */}
                   <form onSubmit={handleIssueBounty} className="liquid-glass p-4 rounded-3xl bg-white/70 border space-y-3">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-800">Issue P2P Bounty (Vault AP Wager)</h3>
                     <select
@@ -570,12 +568,85 @@ export default function FriendsPage() {
                       Deploy Bounty in Escrow
                     </button>
                   </form>
+
+                  {/* Active Bounties & Verification Feed */}
+                  <div className="space-y-3 pt-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 px-1">Active Arena Bounties</h3>
+                    {bounties.length === 0 ? (
+                      <div className="liquid-glass p-6 rounded-3xl text-center text-xs text-zinc-400 bg-white/60 border">
+                        No active bounties in this arena. Deploy a wager above.
+                      </div>
+                    ) : (
+                      bounties.map((bounty) => {
+                        const isTarget = bounty.target_id === myProfile?.id;
+                        return (
+                          <div key={bounty.id} className="liquid-glass p-4 rounded-3xl bg-white/80 border space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 border border-amber-500/20">
+                                {bounty.ap_stake} Vault AP Stake
+                              </span>
+                              <span className="text-[10px] font-bold uppercase text-zinc-400">{bounty.status.replace("_", " ")}</span>
+                            </div>
+
+                            <div>
+                              <p className="text-sm font-bold text-zinc-900">{bounty.task_title}</p>
+                              <p className="text-[11px] text-zinc-500 mt-0.5">Verification required via telemetry link or screenshot proof.</p>
+                            </div>
+
+                            {isTarget && bounty.status === "pending_acceptance" && (
+                              <div className="flex gap-2 pt-1">
+                                <button
+                                  onClick={() => handleAcceptBounty(bounty.id)}
+                                  disabled={bountyLoadingId === bounty.id}
+                                  className="flex-1 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl"
+                                >
+                                  Accept Challenge
+                                </button>
+                                <button
+                                  onClick={() => handleDeclineBounty(bounty.id, bounty.challenger_id, bounty.ap_stake)}
+                                  disabled={bountyLoadingId === bounty.id}
+                                  className="px-4 py-2 bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl"
+                                >
+                                  Decline
+                                </button>
+                              </div>
+                            )}
+
+                            {isTarget && bounty.status === "active" && (
+                              <div className="space-y-2 pt-1">
+                                <input
+                                  type="url"
+                                  placeholder="Paste proof URL (Screenshot / Strava / GitHub link)"
+                                  value={proofInput[bounty.id] || ""}
+                                  onChange={(e) => setProofInput({ ...proofInput, [bounty.id]: e.target.value })}
+                                  className="w-full px-3 py-2 rounded-xl bg-white border text-xs outline-none"
+                                />
+                                <button
+                                  onClick={() => handleSubmitProof(bounty)}
+                                  disabled={bountyLoadingId === bounty.id || !proofInput[bounty.id]}
+                                  className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5"
+                                >
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>Submit Proof & Claim {bounty.ap_stake} AP</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {bounty.status === "completed" && bounty.proof_url && (
+                              <div className="text-[11px] text-emerald-600 font-medium bg-emerald-50 p-2 rounded-xl border border-emerald-100">
+                                Verified Proof: <a href={bounty.proof_url} target="_blank" rel="noreferrer" className="underline font-bold">View Telemetry Link</a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Tab 3: Requests */}
           {activeTab === "requests" && (
             <div className="space-y-3">
               {pendingRequests.map(({ friendshipId, profile }) => (
@@ -594,7 +665,6 @@ export default function FriendsPage() {
             </div>
           )}
 
-          {/* Tab 4: Add Friend */}
           {activeTab === "add" && (
             <form onSubmit={handleSendRequest} className="space-y-3 liquid-glass p-6 rounded-3xl bg-white/70 border">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Manual Handle Lookup</p>
