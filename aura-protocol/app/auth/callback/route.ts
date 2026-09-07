@@ -32,12 +32,14 @@ let destination = "/dashboard";
             ? parseCookies(request.headers.get("cookie")!)
             : [];
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
+       setAll(cookiesToSet) {
+  cookiesToSet.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, {
+      ...options,
+      maxAge: 60 * 60 * 24 * 30, // <--- Persistent session storage
+    });
+  });
+},
     }
   );
 
