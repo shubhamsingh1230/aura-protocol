@@ -1,11 +1,11 @@
 // middleware.ts
-import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
-  })
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,32 +13,32 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return request.cookies.getAll();
         },
-        // middleware.ts (Inside setAll)
-setAll(cookiesToSet) {
-  cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-  supabaseResponse = NextResponse.next({
-    request,
-  });
-  cookiesToSet.forEach(({ name, value, options }) =>
-    supabaseResponse.cookies.set(name, value, {
-      ...options,
-      maxAge: 60 * 60 * 24 * 30, // <--- Forces cookie to persist for 30 days across browser restarts
-    })
-  );
-},
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              maxAge: 60 * 60 * 24 * 30, // Keeps cookies alive for 30 days across browser restarts
+            })
+          );
+        },
+      },
     }
-  )
+  );
 
-  // Refreshes the auth token safely without blocking client rendering
-  await supabase.auth.getUser()
+  // Refreshes the auth token safely
+  await supabase.auth.getUser();
 
-  return supabaseResponse
+  return supabaseResponse;
 }
 
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};
