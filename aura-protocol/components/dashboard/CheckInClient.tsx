@@ -1,7 +1,7 @@
 // components/dashboard/CheckInClient.tsx
 "use client";
+
 import { uploadProofPhoto } from "@/lib/upload";
-import { Camera, Loader2 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,8 +24,7 @@ import {
   Circle, 
   Loader2,
   Shield,
-  Clock,
-  TrendingUp
+  Clock
 } from "lucide-react";
 
 async function compressImage(file: File): Promise<File> {
@@ -115,24 +114,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const movementLabel = userProfile?.movement_label || "Physical Training";
   const grindLabel = userProfile?.grind_label || "Deep Work Block";
 
-  async function uploadToStorage(fileName: string, file: File): Promise<string> {
-    const bucket = "daily-proofs";
-    let { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
-
-    // Fallback to 'proofs' bucket if 'daily-proofs' is not configured
-    if (uploadError && uploadError.message?.toLowerCase().includes("bucket not found")) {
-      const { error: fallbackError } = await supabase.storage.from("proofs").upload(fileName, file);
-      if (fallbackError) throw fallbackError;
-      const { data } = supabase.storage.from("proofs").getPublicUrl(fileName);
-      return data.publicUrl;
-    } else if (uploadError) {
-      throw uploadError;
-    }
-
-    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-    return data.publicUrl;
-  }
-
   async function awardProfilePoints(apDelta: number, xpDelta: number) {
     const updatedAP = Math.max(0, (userProfile?.aura_points || currentAP || 0) + apDelta);
     const updatedXP = Math.max(0, (userProfile?.xp || 0) + xpDelta);
@@ -164,8 +145,9 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
     try {
       const optimizedFile = await compressImage(gymFile);
-      const fileName = `${userProfile.id}_gym_${Date.now()}.jpg`;
-      const publicUrl = await uploadToStorage(fileName, optimizedFile);
+      // Use our standardized uploadProofPhoto helper targeting the public 'proofs' bucket
+      const publicUrl = await uploadProofPhoto(optimizedFile, userProfile.id, "gym");
+      if (!publicUrl) throw new Error("Failed to upload gym proof to storage.");
 
       await supabase.from("posts").insert({
         user_id: userProfile.id,
@@ -179,7 +161,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .from("daily_logs")
         .update({ 
           gym_done: true,
-          workout: true 
+          workout: true,
+          gym_proof_url: publicUrl
         })
         .eq("id", log.id)
         .select()
@@ -214,8 +197,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
     try {
       const optimizedFile = await compressImage(workFile);
-      const fileName = `${userProfile.id}_work_${Date.now()}.jpg`;
-      const publicUrl = await uploadToStorage(fileName, optimizedFile);
+      const publicUrl = await uploadProofPhoto(optimizedFile, userProfile.id, "grind");
+      if (!publicUrl) throw new Error("Failed to upload grind proof to storage.");
 
       await supabase.from("posts").insert({
         user_id: userProfile.id,
@@ -229,7 +212,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .from("daily_logs")
         .update({ 
           editing_done: true,
-          deep_work: true 
+          deep_work: true,
+          grind_proof_url: publicUrl
         })
         .eq("id", log.id)
         .select()
@@ -268,8 +252,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
     try {
       const optimizedFile = await compressImage(mealFile);
-      const fileName = `${userProfile.id}_meal_${Date.now()}.jpg`;
-      const publicUrl = await uploadToStorage(fileName, optimizedFile);
+      const publicUrl = await uploadProofPhoto(optimizedFile, userProfile.id, "meal");
+      if (!publicUrl) throw new Error("Failed to upload meal proof to storage.");
 
       await supabase.from("posts").insert({
         user_id: userProfile.id,
@@ -286,7 +270,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         .from("daily_logs")
         .update({ 
           meals_logged: newMealCount,
-          nutrition: isNutritionComplete ? true : (log?.nutrition || false)
+          nutrition: isNutritionComplete ? true : (log?.nutrition || false),
+          meal_proof_url: publicUrl
         })
         .eq("id", log.id)
         .select()
@@ -442,7 +427,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
       {/* BENTO GRID ANALYTICS */}
       <div className="grid grid-cols-2 gap-3">
-        {/* Deep Work Tile */}
         <Link 
           href="/history?tab=work" 
           className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
@@ -464,7 +448,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           </div>
         </Link>
 
-        {/* Training Tile */}
         <Link 
           href="/history?tab=gym" 
           className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
@@ -486,7 +469,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           </div>
         </Link>
 
-        {/* Arena Percentile Tile */}
         <Link 
           href="/arena" 
           className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
@@ -497,7 +479,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           <p className="text-[9px] text-emerald-600 font-bold mt-1">View Arena →</p>
         </Link>
 
-        {/* 30-Day Consistency Tile */}
         <Link 
           href="/autopsy" 
           className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
@@ -664,7 +645,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </h2>
         <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
           
-          {/* Morning Routine */}
           <div 
             onClick={() => handleTogglePillar("morning_routine", 5, 15)}
             className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
@@ -689,7 +669,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             )}
           </div>
 
-          {/* Active Learning */}
           <div 
             onClick={() => handleTogglePillar("learning", 5, 15)}
             className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
@@ -714,7 +693,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             )}
           </div>
 
-          {/* Sleep Target */}
           <div 
             onClick={() => handleTogglePillar("sleep_target", 5, 15)}
             className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
@@ -739,7 +717,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             )}
           </div>
 
-          {/* Evening Review */}
           <div 
             onClick={() => handleTogglePillar("daily_review", 5, 10)}
             className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
