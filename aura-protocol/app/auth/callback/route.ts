@@ -5,17 +5,18 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Default redirect to root or onboarding check
+  const next = searchParams.get("next") ?? "/";
 
   if (code) {
     const supabase = createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-
+    
     if (!error) {
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
 
-  // If code exchange fails, route back to login with error parameter
-  return NextResponse.redirect(`${origin}/login?error=Authentication+exchange+failed`);
+  // Return to login with error if exchange failed
+  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
 }
