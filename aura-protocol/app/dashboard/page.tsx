@@ -49,6 +49,11 @@ export default async function DashboardPage() {
     return redirect("/onboarding");
   }
 
+  // Guard: Ensure stake is paid before accessing the Command Center
+  if (!profile.stake_paid) {
+    return redirect("/onboarding/payment");
+  }
+
   // 2. Fetch or initialize today's daily log
   let { data: todayLog } = await supabase
     .from("daily_logs")
@@ -114,7 +119,6 @@ export default async function DashboardPage() {
       .filter((l) => l.activity === "gym_workout" && (l.log_date === dateStr || l.created_at?.startsWith(dateStr)))
       .reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
 
-    // Scaling: 4 hours (14400s) = 100% for deep work; 1.5 hours (5400s) = 100% for workout
     workTrend.push(Math.min(100, Math.round((dayWorkSecs / 14400) * 100)));
     gymTrend.push(Math.min(100, Math.round((dayGymSecs / 5400) * 100)));
   }
@@ -142,8 +146,8 @@ export default async function DashboardPage() {
   const totalPossible = trackedDays * 3;
   const consistencyScore = Math.min(100, Math.round((completedPillars / (totalPossible || 1)) * 100));
 
-  // 5. Calculate Arena community percentile based on AP
-  const userAP = profile.aura_points || 0;
+  // 5. Calculate Arena community percentile based on Earned AP (Dual-Ledger)
+  const userAP = profile.earned_ap ?? profile.aura_points ?? 0;
   const { count: totalOperators } = await supabase
     .from("profiles")
     .select("id", { count: "exact", head: true });
@@ -151,11 +155,10 @@ export default async function DashboardPage() {
   const { count: belowCount } = await supabase
     .from("profiles")
     .select("id", { count: "exact", head: true })
-    .lt("aura_points", userAP);
+    .lt("earned_ap", userAP);
 
   const total = totalOperators || 1;
   const below = belowCount || 0;
-  // Percentile: e.g. top 5%, top 10%
   const rankPercent = Math.max(1, 100 - Math.round((below / total) * 100));
 
   const analytics = {
@@ -165,7 +168,8 @@ export default async function DashboardPage() {
     gymTrend,
     gymTime: formatDuration(todayGymSeconds),
     editingTime: formatDuration(todayWorkSeconds),
-    auraPoints: profile.aura_points || 0,
+    auraPoints: userAP,
+    vaultAp: profile.vault_ap || 0,
     identityRank: profile.identity_rank || "Initiate",
     currentStreak: profile.current_streak || 0,
     streakShields: profile.streak_shields || 0,
