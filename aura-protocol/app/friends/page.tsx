@@ -13,7 +13,10 @@ import {
   Search, 
   Loader2, 
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Share2,
+  Copy,
+  CheckCircle2
 } from "lucide-react";
 
 interface Profile {
@@ -33,9 +36,11 @@ export default function FriendsPage() {
   const [activeTab, setActiveTab] = useState<"squad" | "requests" | "add">("squad");
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendItem[]>([]);
+  const [myProfile, setMyProfile] = useState<Profile | null>(null);
   const [searchHandle, setSearchHandle] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   const supabase = createClient();
@@ -49,7 +54,16 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Fetch accepted friendships where current user is either sender or receiver
+    // 1. Fetch current operator profile for unique invite link
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id, full_name, handle, aura_points, identity_rank")
+      .eq("id", user.id)
+      .single();
+
+    setMyProfile(profileData);
+
+    // 2. Fetch accepted friendships
     const { data: acceptedRows } = await supabase
       .from("friendships")
       .select(`
@@ -63,7 +77,6 @@ export default function FriendsPage() {
       .eq("status", "accepted")
       .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
 
-    // Map to list of friend profiles
     const mappedFriends: FriendItem[] = (acceptedRows || []).map((row: any) => {
       const friendProfile = row.user_id === user.id ? row.receiver : row.sender;
       return {
@@ -73,7 +86,7 @@ export default function FriendsPage() {
     });
     setFriends(mappedFriends);
 
-    // Fetch pending requests sent TO the current user
+    // 3. Fetch pending requests sent TO current operator
     const { data: requestRows } = await supabase
       .from("friendships")
       .select(`
@@ -90,6 +103,16 @@ export default function FriendsPage() {
     setPendingRequests(mappedRequests);
 
     setLoading(false);
+  }
+
+  function handleCopyInviteLink() {
+    const handle = myProfile?.handle || "operator";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const inviteUrl = `${origin}/invite/${handle}`;
+
+    navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   }
 
   async function handleSendRequest(e: React.FormEvent) {
@@ -174,10 +197,30 @@ export default function FriendsPage() {
 
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
-      {/* Title Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Operator Squad</h1>
-        <p className="text-zinc-500 text-sm font-medium">Peer Accountability & Social Sync</p>
+      {/* Title Header with Copy Invite Link Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Operator Squad</h1>
+          <p className="text-zinc-500 text-sm font-medium">Peer Accountability & Social Sync</p>
+        </div>
+
+        <button
+          onClick={handleCopyInviteLink}
+          className="p-2.5 px-3.5 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+          title="Copy Personal Squad Invite Link"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Invite Link</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Glass Navigation Tabs */}
@@ -226,7 +269,7 @@ export default function FriendsPage() {
             <div className="space-y-3">
               {friends.length > 0 ? (
                 friends.map(({ friendshipId, profile }) => {
-                  const displayName = profile?.full_name || profile?.handle || "Operator";
+                  const displayName = profile?.full_name || (profile?.handle ? `@${profile.handle}` : "Operator");
                   return (
                     <div
                       key={friendshipId}
@@ -234,7 +277,7 @@ export default function FriendsPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xs uppercase shadow-sm">
-                          {displayName.charAt(0)}
+                          {displayName.replace(/^@/, "").charAt(0)}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-zinc-900">{displayName}</p>
@@ -254,15 +297,20 @@ export default function FriendsPage() {
                   );
                 })
               ) : (
-                <div className="liquid-glass p-8 rounded-3xl text-center space-y-3 border border-white/80 bg-white/60">
+                <div className="liquid-glass p-8 rounded-3xl text-center space-y-4 border border-white/80 bg-white/60">
                   <Users className="w-8 h-8 text-zinc-300 mx-auto" />
-                  <p className="text-sm font-bold text-zinc-700">Squad is empty</p>
-                  <p className="text-xs text-zinc-400">Add friends using their operator handle to track collective progress.</p>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-800">Squad is Empty</p>
+                    <p className="text-xs text-zinc-400 mt-1 max-w-xs mx-auto">
+                      Accountability increases by 85% when you train with friends. Share your unique invite pass to sync streaks.
+                    </p>
+                  </div>
                   <button
-                    onClick={() => setActiveTab("add")}
-                    className="mt-2 px-4 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold shadow-md hover:bg-zinc-800 transition-all"
+                    onClick={handleCopyInviteLink}
+                    className="px-4 py-2.5 rounded-2xl bg-zinc-900 text-white text-xs font-bold shadow-md hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 mx-auto"
                   >
-                    Find Operators
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? "Link Copied!" : "Copy Squad Invite Link"}</span>
                   </button>
                 </div>
               )}
@@ -314,7 +362,41 @@ export default function FriendsPage() {
           {/* Tab 3: Search & Add Friend */}
           {activeTab === "add" && (
             <div className="space-y-4">
-              <form onSubmit={handleSendRequest} className="space-y-3">
+              {/* Viral Referral Pass Banner */}
+              <div className="liquid-glass rounded-3xl p-5 border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700">
+                    Viral Invite Pass
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">
+                    7-Day Pass Included
+                  </span>
+                </div>
+                <p className="text-xs font-medium text-zinc-600 leading-relaxed">
+                  Send your personal invite link. When friends accept, they bypass manual requests and immediately sync to your squad.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${myProfile?.handle || "operator"}`}
+                    className="flex-1 bg-white/80 border border-emerald-500/20 rounded-xl px-3 py-2 text-[11px] font-mono text-zinc-600 outline-none select-all"
+                  />
+                  <button
+                    onClick={handleCopyInviteLink}
+                    className="px-3 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-all flex items-center gap-1 shrink-0"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? "Copied" : "Copy"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Search by Handle Form */}
+              <form onSubmit={handleSendRequest} className="space-y-3 pt-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                  Manual Handle Lookup
+                </p>
                 <div className="relative">
                   <Search className="w-4 h-4 text-zinc-400 absolute left-4 top-3.5" />
                   <input
