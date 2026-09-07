@@ -1,54 +1,66 @@
+// app/api/payments/create-order/route.ts
 import { NextResponse } from "next/server";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { createRazorpayOrder } from "@/lib/razorpay";
+import { createClient } from "@/lib/supabase/server";
+import Razorpay from "razorpay";
 
-// Generates the current ISO week string (e.g., '2026-W36')
-function getCurrentWeekId(): string {
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-}
+export async function POST(request: Request) {
+  try {
+    // 1. Authenticate user using the standard createClient helper
+    const supabase = createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-export async function POST() {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized operator" }, { status: 401 });
+    }
 
-  const service = createServiceClient();
-  const weekId = getCurrentWeekId();
-  const stakeAmountInr = 10; // Fixed ₹10 weekly stake
+    // 2. Parse request payload safely
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+    const amountInr = (body as any).amountInr || 10;
 
-  // Create Razorpay order for the weekly stake
-  const order = await createRazorpayOrder({
-    amountInr: stakeAmountInr,
-    receipt: `stk_${user.id.slice(0, 8)}_${Date.now().toString().slice(-6)}`,
-    notes: { user_id: user.id, week_id: weekId },
-  });
+    // 3. Verify Razorpay credentials
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-  // Upsert the stake record tied to the current week
-  const { error } = await service.from("stakes").upsert(
-    {
-      user_id: user.id,
-      week_id: weekId,
-      amount_inr: stakeAmountInr,
-      razorpay_order_id: order.id,
-      status: "created",
-    },
-    { onConflict: "user_id,week_id" }
-  );
+    if (!keyId || !keySecret) {
+      return NextResponse.json(
+        { error: "Razorpay credentials are not configured in environment variables" },
+        { status: 500 }
+      );
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // @ts-ignore
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
 
-  return NextResponse.json({
-    orderId: order.id,
-    amount: order.amount,
-    currency: order.currency,
-    keyId: process.env.RAZORPAY_KEY_ID,
-  });
+    const options = {
+      amount: Math.round(amountInr * 100), // convert to paise (₹10 = 1000)
+      currency: "INR",
+      receipt: `rcpt_${user.id.slice(0, 8)}_${Date.now()}`,
+      notes: {
+        user_id: user.id,
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    return NextResponse.json({
+      id: order.id,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    });
+  } catch (error: any) {
+    console.error("Razorpay order creation exception:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to create payment order" },
+      { status: 500 }
+    );
+  }
 }
