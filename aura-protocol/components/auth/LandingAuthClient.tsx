@@ -7,14 +7,16 @@ import { Sparkles } from "lucide-react";
 export default function LandingAuthClient() {
   const supabase = createClient();
 
-  const handleSocialLogin = async (provider: "google" | "discord") => {
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-  };
+  const handleGoogleLogin = async () => {
+  const supabase = createClient(); // Your Supabase browser client
+  await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      // This explicitly routes the Google handshake to your Next.js route handler
+      redirectTo: `${window.location.origin}/auth/callback`,
+    },
+  });
+};
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-between p-6 selection:bg-emerald-500 selection:text-black">
