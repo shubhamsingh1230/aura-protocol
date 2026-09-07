@@ -1,57 +1,21 @@
-import { NextResponse } from 'next/server';
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import type { Database } from '@/types/database';
+// app/auth/callback/route.ts
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/feed';
+  const code = searchParams.get("code");
+  const next = searchParams.get("next") ?? "/dashboard";
 
-  if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=Missing auth code`);
-  }
+  if (code) {
+    const supabase = createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
-  const cookieStore = cookies();
-  const response = NextResponse.redirect(`${origin}${next}`);
-
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          response.cookies.set({ 
-            name, 
-            value, 
-            ...options,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/'
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          response.cookies.set({ 
-            name, 
-            value: '', 
-            ...options,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/'
-          });
-        },
-      },
+    if (!error) {
+      return NextResponse.redirect(`${origin}${next}`);
     }
-  );
-
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
-    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  return response;
+  // If code exchange fails, route back to login with error parameter
+  return NextResponse.redirect(`${origin}/login?error=Authentication+exchange+failed`);
 }
