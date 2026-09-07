@@ -1,16 +1,24 @@
+// app/auth/callback/route.ts
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/arena";
+  const oauthError = searchParams.get("error") || searchParams.get("error_description");
 
-  if (!code) {
-    return new NextResponse("Auth Error: Missing 'code' parameter from Google redirect.", { status: 400 });
+  // 1. If Google sent an error back, catch it so we can see what it is
+  if (oauthError) {
+    console.error("Google OAuth rejected the request:", oauthError);
+    return NextResponse.redirect(`${origin}/?error=${encodeURIComponent(oauthError)}`);
   }
 
-  const response = NextResponse.redirect(`${origin}${next}`);
+  // 2. If there's no code and no error, catch the missing code scenario
+  if (!code) {
+    return NextResponse.redirect(`${origin}/?error=missing_code_parameter`);
+  }
+
+  const response = NextResponse.redirect(`${origin}/arena`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +26,9 @@ export async function GET(request: Request) {
     {
       cookies: {
         getAll() {
-          return request.headers.get("cookie") ? parseCookies(request.headers.get("cookie")!) : [];
+          return request.headers.get("cookie")
+            ? parseCookies(request.headers.get("cookie")!)
+            : [];
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
@@ -30,21 +40,17 @@ export async function GET(request: Request) {
   );
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
-    // THIS WILL SHOW US THE EXACT PROBLEM INSTEAD OF LOOPING
-    return new NextResponse(
-      `🚨 SUPABASE AUTH EXCHANGE FAILED: ${error.message} (Status: ${error.status})`, 
-      { status: 500 }
-    );
+  
+  if (!error) {
+    return response;
   }
 
-  return response;
+  return NextResponse.redirect(`${origin}/?error=session_exchange_failed`);
 }
 
 function parseCookies(cookieHeader: string) {
   return cookieHeader.split(";").map((cookie) => {
-    const [name, ...rest] = cookie.trim().split(";")[0].split("=");
+    const [name, ...rest] = cookie.trim().split("=");
     return { name, value: rest.join("=") };
   });
 }
