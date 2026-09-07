@@ -15,16 +15,19 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
+        // middleware.ts (Inside setAll)
+setAll(cookiesToSet) {
+  cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+  supabaseResponse = NextResponse.next({
+    request,
+  });
+  cookiesToSet.forEach(({ name, value, options }) =>
+    supabaseResponse.cookies.set(name, value, {
+      ...options,
+      maxAge: 60 * 60 * 24 * 30, // <--- Forces cookie to persist for 30 days across browser restarts
+    })
+  );
+},
     }
   )
 
