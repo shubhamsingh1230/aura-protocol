@@ -1,7 +1,31 @@
+// app/dashboard/page.tsx
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CheckInClient from "@/components/dashboard/CheckInClient";
-import { getTodayLogDate } from "@/lib/timezone";
+
+// Deterministic daily anti-cheat gesture
+function getDailyGesture(): string {
+  const gestures = [
+    "✌️ Two Fingers (Peace Sign)",
+    "👍 Thumbs Up near your screen/weights",
+    "👌 OK Sign clearly visible",
+    "🖐️ Open Palm facing the lens",
+    "🤙 Shaka Sign in the frame",
+    "☝️ Index Finger pointing up",
+  ];
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+  );
+  return gestures[dayOfYear % gestures.length];
+}
+
+function formatDuration(totalSeconds: number): string {
+  if (!totalSeconds || totalSeconds <= 0) return "0m";
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins}m`;
+}
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -11,130 +35,148 @@ export default async function DashboardPage() {
     return redirect("/login");
   }
 
-  // 1. Fetch user profile (includes aura_points, xp, streaks, rank)
+  const todayDate = new Date().toISOString().split("T")[0];
+
+  // 1. Fetch user profile
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  const logDate = getTodayLogDate(profile?.timezone_offset || 0);
+  // Redirect to onboarding if contract is unsigned or handle is missing
+  if (!profile || !profile.handle || !profile.contract_signed_at) {
+    return redirect("/onboarding");
+  }
 
   // 2. Fetch or initialize today's daily log
-  let { data: log } = await supabase
+  let { data: todayLog } = await supabase
     .from("daily_logs")
     .select("*")
     .eq("user_id", user.id)
-    .eq("log_date", logDate)
-    .single();
+    .eq("log_date", todayDate)
+    .maybeSingle();
 
-  if (!log) {
-    const { data: newLog } = await supabase
+  if (!todayLog) {
+    const { data: createdLog } = await supabase
       .from("daily_logs")
-      .insert({ 
-        user_id: user.id, 
-        log_date: logDate,
-        daily_score: 0,
-        ap_earned: 0,
-        xp_earned: 0
+      .insert({
+        user_id: user.id,
+        log_date: todayDate,
+        meals_logged: 0,
+        gym_done: false,
+        editing_done: false,
       })
       .select()
       .single();
-    log = newLog;
+    todayLog = createdLog;
   }
 
-  // 3. Fetch Today's Gesture
-  const { data: gestureData } = await supabase
-    .from("daily_gestures")
-    .select("gesture_name")
-    .eq("date", logDate)
-    .single();
+  // 3. Fetch past 7 days of time logs for visual bar sparklines
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
 
-  // 4. Fetch 30-Day Consistency Data (Supports both 7-pillar and legacy fields)
+  const { data: recentTimeLogs } = await supabase
+    .from("time_logs")
+    .select("activity, duration_seconds, log_date, created_at")
+    .eq("user_id", user.id)
+    .gte("log_date", sevenDaysAgoStr);
+
+  const timeLogs = recentTimeLogs || [];
+
+  // Calculate today's logged durations
+  let todayGymSeconds = 0;
+  let todayWorkSeconds = 0;
+
+  timeLogs.forEach((l) => {
+    const isToday = l.log_date === todayDate || l.created_at?.startsWith(todayDate);
+    if (isToday) {
+      if (l.activity === "gym_workout") todayGymSeconds += l.duration_seconds || 0;
+      if (l.activity === "editing_deep_work") todayWorkSeconds += l.duration_seconds || 0;
+    }
+  });
+
+  // Calculate 7-day relative bar heights (0–100%)
+  const workTrend: number[] = [];
+  const gymTrend: number[] = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split("T")[0];
+
+    const dayWorkSecs = timeLogs
+      .filter((l) => l.activity === "editing_deep_work" && (l.log_date === dateStr || l.created_at?.startsWith(dateStr)))
+      .reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
+
+    const dayGymSecs = timeLogs
+      .filter((l) => l.activity === "gym_workout" && (l.log_date === dateStr || l.created_at?.startsWith(dateStr)))
+      .reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
+
+    // Scaling: 4 hours (14400s) = 100% for deep work; 1.5 hours (5400s) = 100% for workout
+    workTrend.push(Math.min(100, Math.round((dayWorkSecs / 14400) * 100)));
+    gymTrend.push(Math.min(100, Math.round((dayGymSecs / 5400) * 100)));
+  }
+
+  // 4. Fetch past 30 days of daily logs for consistency scoring
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
+
   const { data: monthLogs } = await supabase
     .from("daily_logs")
-    .select("gym_done, editing_done, meals_logged, workout, deep_work, nutrition, morning_routine, learning, sleep_target, daily_review, daily_score")
+    .select("gym_done, editing_done, meals_logged, workout, deep_work")
     .eq("user_id", user.id)
-    .gte("log_date", thirtyDaysAgo.toISOString().split("T")[0]);
+    .gte("log_date", thirtyDaysAgoStr);
 
-  let totalPillarsHit = 0;
-  const daysTracked = monthLogs?.length || 1;
-  const maxPossiblePillars = daysTracked * 7;
+  let completedPillars = 0;
+  const trackedDays = Math.max(monthLogs?.length || 1, 1);
 
-  monthLogs?.forEach((day: any) => {
-    // Check 7 pillars, falling back to legacy fields if present
-    if (day.workout || day.gym_done) totalPillarsHit++;
-    if (day.deep_work || day.editing_done) totalPillarsHit++;
-    if (day.nutrition || day.meals_logged === 5) totalPillarsHit++;
-    if (day.morning_routine) totalPillarsHit++;
-    if (day.learning) totalPillarsHit++;
-    if (day.sleep_target) totalPillarsHit++;
-    if (day.daily_review) totalPillarsHit++;
+  (monthLogs || []).forEach((day) => {
+    if (day.gym_done || day.workout) completedPillars++;
+    if (day.editing_done || day.deep_work) completedPillars++;
+    if ((day.meals_logged || 0) >= 5) completedPillars++;
   });
 
-  const consistencyScore = Math.min(100, Math.round((totalPillarsHit / maxPossiblePillars) * 100));
+  const totalPossible = trackedDays * 3;
+  const consistencyScore = Math.min(100, Math.round((completedPillars / (totalPossible || 1)) * 100));
 
-  // 5. Fetch 7-Day Time Trends (For the Bar Charts)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const { data: weekTimeLogs } = await supabase
-    .from("time_logs")
-    .select("activity, duration_seconds, log_date")
-    .eq("user_id", user.id)
-    .gte("log_date", sevenDaysAgo.toISOString().split("T")[0]);
+  // 5. Calculate Arena community percentile based on AP
+  const userAP = profile.aura_points || 0;
+  const { count: totalOperators } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
 
-  const workTrend = [0, 0, 0, 0, 0, 0, 0];
-  const gymTrend = [0, 0, 0, 0, 0, 0, 0];
-  let todayGymSeconds = 0;
-  let todayEditSeconds = 0;
+  const { count: belowCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .lt("aura_points", userAP);
 
-  weekTimeLogs?.forEach((timeLog) => {
-    const logAge = Math.floor((new Date().getTime() - new Date(timeLog.log_date).getTime()) / (1000 * 3600 * 24));
-    const dayIndex = 6 - (logAge > 6 ? 6 : logAge);
+  const total = totalOperators || 1;
+  const below = belowCount || 0;
+  // Percentile: e.g. top 5%, top 10%
+  const rankPercent = Math.max(1, 100 - Math.round((below / total) * 100));
 
-    if (timeLog.activity === "gym_workout") {
-      gymTrend[dayIndex] += timeLog.duration_seconds;
-      if (timeLog.log_date === logDate) todayGymSeconds += timeLog.duration_seconds;
-    }
-    if (timeLog.activity === "editing_deep_work") {
-      workTrend[dayIndex] += timeLog.duration_seconds;
-      if (timeLog.log_date === logDate) todayEditSeconds += timeLog.duration_seconds;
-    }
-  });
-
-  const normalizedWorkTrend = workTrend.map((sec) => Math.min(Math.round((sec / 14400) * 100), 100));
-  const normalizedGymTrend = gymTrend.map((sec) => Math.min(Math.round((sec / 7200) * 100), 100));
-
-  const formatTime = (totalSeconds: number) => {
-    if (totalSeconds === 0) return "0m";
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
-  };
-
-  const analyticsData = {
-    gymTime: formatTime(todayGymSeconds),
-    editingTime: formatTime(todayEditSeconds),
-    workTrend: normalizedWorkTrend,
-    gymTrend: normalizedGymTrend,
-    consistencyScore: consistencyScore,
-    percentile: 14,
-    // Upgraded Protocol Metrics
-    auraPoints: profile?.aura_points || 0,
-    identityRank: profile?.identity_rank || "Initiate",
-    currentStreak: profile?.current_streak || 0,
-    streakShields: profile?.streak_shields || 0,
-    subscriptionStatus: profile?.subscription_status || "trialing",
+  const analytics = {
+    consistencyScore,
+    percentile: rankPercent,
+    workTrend,
+    gymTrend,
+    gymTime: formatDuration(todayGymSeconds),
+    editingTime: formatDuration(todayWorkSeconds),
+    auraPoints: profile.aura_points || 0,
+    identityRank: profile.identity_rank || "Initiate",
+    currentStreak: profile.current_streak || 0,
+    streakShields: profile.streak_shields || 0,
   };
 
   return (
-    <CheckInClient 
-      profile={profile} 
-      initialLog={log!} 
-      gesture={gestureData?.gesture_name || "Peace Sign"} 
-      analytics={analyticsData} 
+    <CheckInClient
+      profile={profile}
+      initialLog={todayLog}
+      gesture={getDailyGesture()}
+      analytics={analytics}
     />
   );
 }
