@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const oauthError = searchParams.get("error") || searchParams.get("error_description");
 
-  // 1. If Google sent an error back, catch it so we can see what it is
+  // 1. If Google sent an error back, catch it
   if (oauthError) {
     console.error("Google OAuth rejected the request:", oauthError);
     return NextResponse.redirect(`${origin}/?error=${encodeURIComponent(oauthError)}`);
@@ -18,7 +18,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/?error=missing_code_parameter`);
   }
 
-  const response = NextResponse.redirect(`${origin}/arena`);
+  // Default destination is arena, but we will check below if they need onboarding
+  let destination = "/arena";
+  const response = NextResponse.redirect(`${origin}${destination}`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,13 +41,31 @@ export async function GET(request: Request) {
     }
   );
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   
-  if (!error) {
-    return response;
+  if (error || !data.user) {
+    return NextResponse.redirect(`${origin}/?error=session_exchange_failed`);
   }
 
-  return NextResponse.redirect(`${origin}/?error=session_exchange_failed`);
+  // 3. Check if the user has a profile or has completed onboarding
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, onboarding_completed")
+    .eq("id", data.user.id)
+    .single();
+
+  // If they have no profile row yet or onboarding is false, send them to your setup ritual
+  if (!profile || !profile.onboarding_completed) {
+    destination = "/onboarding"; // Change this if your onboarding route is named differently (e.g. /setup or /ritual)
+  }
+
+  // 4. Build the final redirect response carrying over all session cookies securely
+  const finalResponse = NextResponse.redirect(`${origin}${destination}`);
+  response.cookies.getAll().forEach((cookie) => {
+    finalResponse.cookies.set(cookie.name, cookie.value, cookie.options);
+  });
+
+  return finalResponse;
 }
 
 function parseCookies(cookieHeader: string) {
