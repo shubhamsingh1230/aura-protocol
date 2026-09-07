@@ -1,3 +1,4 @@
+// middleware.ts
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
@@ -27,7 +28,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Critical: This forces the server to validate the token on every route
+  // Refreshes the auth token safely without blocking client rendering
   await supabase.auth.getUser()
 
   return supabaseResponse
