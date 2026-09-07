@@ -1,31 +1,41 @@
-// app/api/razorpay/create-order/route.ts
+// app/api/razorpay/order/route.ts
 import { NextResponse } from "next/server";
-import Razorpay from "razorpay";
 import { createClient } from "@/lib/supabase/server";
+import Razorpay from "razorpay";
 
-export async function POST() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!,
-  });
-
+export async function POST(request: Request) {
   try {
-    // 1000 paise = ₹10.00 INR
+    const supabase = createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized: Operator session not found" },
+        { status: 401 }
+      );
+    }
+
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      return NextResponse.json(
+        { error: "Server Configuration Error: Razorpay keys are missing in Vercel environment." },
+        { status: 500 }
+      );
+    }
+
+    // @ts-ignore
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
     const options = {
-      amount: 1000, 
+      amount: 1000, // ₹10 in paise
       currency: "INR",
-      receipt: `rcpt_${user.id.slice(0, 8)}_${Date.now()}`,
-      notes: {
-        userId: user.id,
-        plan: "weekly_operator_pass",
-      },
+      receipt: `stake_${user.id.slice(0, 6)}_${Date.now()}`,
+      notes: { user_id: user.id },
     };
 
     const order = await razorpay.orders.create(options);
@@ -34,12 +44,67 @@ export async function POST() {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
     });
-  } catch (error: any) {
-    console.error("Razorpay order creation error:", error);
+  } catch (err: any) {
+    console.error("Razorpay order creation fatal exception:", err);
+    // ALWAYS return JSON, never let Next.js return an HTML error page
     return NextResponse.json(
-      { error: error.message || "Failed to create payment order" },
+      { error: err?.message || "Internal server error during order creation" },
+      { status: 500 }
+    );
+  }
+}// app/api/razorpay/order/route.ts
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import Razorpay from "razorpay";
+
+export async function POST(request: Request) {
+  try {
+    const supabase = createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized: Operator session not found" },
+        { status: 401 }
+      );
+    }
+
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      return NextResponse.json(
+        { error: "Server Configuration Error: Razorpay keys are missing in Vercel environment." },
+        { status: 500 }
+      );
+    }
+
+    // @ts-ignore
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+
+    const options = {
+      amount: 1000, // ₹10 in paise
+      currency: "INR",
+      receipt: `stake_${user.id.slice(0, 6)}_${Date.now()}`,
+      notes: { user_id: user.id },
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    return NextResponse.json({
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+    });
+  } catch (err: any) {
+    console.error("Razorpay order creation fatal exception:", err);
+    // ALWAYS return JSON, never let Next.js return an HTML error page
+    return NextResponse.json(
+      { error: err?.message || "Internal server error during order creation" },
       { status: 500 }
     );
   }
