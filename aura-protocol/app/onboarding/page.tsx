@@ -16,7 +16,9 @@ import {
   ArrowRight,
   Dumbbell,
   Laptop,
-  Check
+  Check,
+  User,
+  AlertCircle
 } from "lucide-react";
 
 const STAKE_INR = 10;
@@ -48,13 +50,17 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      const userEmail = data.user?.email ?? "";
+      if (!data.user) {
+        router.replace("/login");
+        return;
+      }
+      const userEmail = data.user.email ?? "";
       const baseName = userEmail.split("@")[0] ?? "";
       setEmail(userEmail);
       setDisplayName((prev) => prev || baseName);
       setHandle((prev) => prev || baseName.toLowerCase().replace(/[^a-z0-9_]/g, ""));
     });
-  }, []);
+  }, [router, supabase]);
 
   // Debounced handle validation
   useEffect(() => {
@@ -81,7 +87,7 @@ export default function OnboardingPage() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [handle]);
+  }, [handle, supabase]);
 
   async function handleSign() {
     setError(null);
@@ -124,8 +130,8 @@ export default function OnboardingPage() {
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
-        movement_label: movementLabel.trim() || "Movement",
-        grind_label: grindLabel.trim() || "Grind",
+        movement_label: movementLabel.trim() || "Physical Training",
+        grind_label: grindLabel.trim() || "Deep Work Block",
         calorie_goal: Number.isNaN(parsedGoal) ? null : parsedGoal,
       })
       .eq("id", user.id);
@@ -148,7 +154,7 @@ export default function OnboardingPage() {
     const trialEnds = new Date();
     trialEnds.setDate(trialEnds.getDate() + 7);
 
-    // Credit starting operator assets: 1 shield, 50 AP, active pass
+    // 1. Credit starting operator assets: 1 shield, 50 AP, active pass, initial streaks
     await supabase
       .from("profiles")
       .update({
@@ -156,27 +162,45 @@ export default function OnboardingPage() {
         trial_ends_at: trialEnds.toISOString(),
         streak_shields: 1,
         aura_points: 50,
+        current_streak: 1,
+        longest_streak: 1,
       })
       .eq("id", user.id);
 
-    // Queue welcome protocol transmission
+    // 2. Initialize Today's Daily Log entry
+    const todayDate = new Date().toISOString().split("T")[0];
+    await supabase
+      .from("daily_logs")
+      .upsert(
+        {
+          user_id: user.id,
+          log_date: todayDate,
+          meals_logged: 0,
+          gym_done: false,
+          editing_done: false,
+        },
+        { onConflict: "user_id,log_date" }
+      );
+
+    // 3. Queue welcome protocol transmission
     await supabase.from("notifications").insert({
       user_id: user.id,
       actor_id: user.id,
       type: "welcome",
       message: "🛡️ Operator Dossier Activated: 1 Streak Shield and 50 AP credited to your profile. Welcome to the Arena.",
+      is_read: false,
     });
 
     router.replace("/dashboard");
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-emerald-50/40 flex flex-col items-center justify-center px-4 py-12">
       <div className="max-w-md w-full liquid-glass rounded-3xl p-6 sm:p-8 border border-white/80 shadow-2xl backdrop-blur-2xl bg-white/75 flex flex-col">
         
         {/* Step Indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          {(["contract", "sign", "customize", "stake"] as Step[]).map((s, idx) => (
+          {(["contract", "sign", "customize", "stake"] as Step[]).map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -203,7 +227,7 @@ export default function OnboardingPage() {
 
               <div className="space-y-2.5">
                 {CONTRACT_TERMS.map((term, i) => (
-                  <div key={i} className="liquid-glass rounded-2xl p-3.5 flex gap-3 border border-zinc-200/60 bg-white/60">
+                  <div key={i} className="liquid-glass rounded-2xl p-3.5 flex gap-3 border border-zinc-200/60 bg-white/60 shadow-xs">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                       <Check className="w-3 h-3 stroke-[3]" />
                     </div>
@@ -240,14 +264,17 @@ export default function OnboardingPage() {
               <div className="space-y-3 pt-1">
                 <div>
                   <label className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider block mb-1">
-                    Display Name
+                    Display Name / Alias
                   </label>
-                  <input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Leaderboard alias"
-                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  />
+                  <div className="relative">
+                    <input
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Leaderboard alias"
+                      className="w-full bg-white border border-zinc-200 rounded-2xl pl-10 pr-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
+                    />
+                    <User className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3.5" />
+                  </div>
                 </div>
 
                 <div>
@@ -259,10 +286,10 @@ export default function OnboardingPage() {
                       value={handle}
                       onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
                       placeholder="handle_name"
-                      className="w-full bg-white border border-zinc-200 rounded-2xl pl-8 pr-10 py-3 text-xs font-semibold font-mono text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      className="w-full bg-white border border-zinc-200 rounded-2xl pl-8 pr-10 py-3 text-xs font-semibold font-mono text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     />
-                    <span className="absolute left-3 top-3 text-zinc-400 text-xs font-mono">@</span>
-                    <div className="absolute right-3.5 top-3">
+                    <span className="absolute left-3 top-3 text-zinc-400 text-xs font-mono font-bold">@</span>
+                    <div className="absolute right-3.5 top-3.5">
                       {checkingHandle ? (
                         <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
                       ) : handleAvailable === true ? (
@@ -282,23 +309,37 @@ export default function OnboardingPage() {
                     value={signature}
                     onChange={(e) => setSignature(e.target.value)}
                     placeholder="Digital Signature"
-                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     style={{ fontFamily: "cursive" }}
                   />
                 </div>
               </div>
 
-              {error && <p className="text-rose-600 text-xs font-bold bg-rose-50 p-2.5 rounded-xl border border-rose-200">{error}</p>}
+              {error && (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSign}
-                disabled={signature.trim().length < 2 || !displayName.trim() || handleAvailable === false}
-                className="mt-4 w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-3.5 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 cursor-pointer"
-              >
-                <span>Ratify & Continue</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep("contract")}
+                  className="px-4 py-3.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 font-bold text-xs"
+                >
+                  Back
+                </button>
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSign}
+                  disabled={signature.trim().length < 2 || !displayName.trim() || handleAvailable === false}
+                  className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-3.5 shadow-md flex items-center justify-center gap-2 transition-all disabled:opacity-40 cursor-pointer"
+                >
+                  <span>Ratify & Continue</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
             </motion.div>
           )}
 
@@ -329,7 +370,7 @@ export default function OnboardingPage() {
                     value={movementLabel}
                     onChange={(e) => setMovementLabel(e.target.value)}
                     placeholder="e.g. Strength Training, Running, Calisthenics"
-                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                   />
                 </div>
 
@@ -342,7 +383,7 @@ export default function OnboardingPage() {
                     value={grindLabel}
                     onChange={(e) => setGrindLabel(e.target.value)}
                     placeholder="e.g. Video Production, CS Modules, Meta Ads"
-                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                   />
                 </div>
 
@@ -356,21 +397,35 @@ export default function OnboardingPage() {
                     value={calorieGoal}
                     onChange={(e) => setCalorieGoal(e.target.value)}
                     placeholder="e.g. 2400"
-                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                   />
                 </div>
               </div>
 
-              {error && <p className="text-rose-600 text-xs font-bold bg-rose-50 p-2.5 rounded-xl border border-rose-200">{error}</p>}
+              {error && (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={handleCustomize}
-                className="mt-4 w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-3.5 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                <span>Save Pillars & Proceed to Stake</span>
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep("sign")}
+                  className="px-4 py-3.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-600 font-bold text-xs"
+                >
+                  Back
+                </button>
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleCustomize}
+                  className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-3.5 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <span>Save Pillars & Proceed</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
             </motion.div>
           )}
 
@@ -383,8 +438,8 @@ export default function OnboardingPage() {
               exit={{ opacity: 0, y: -10 }}
               className="flex flex-col items-center justify-center text-center space-y-4"
             >
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shadow-xs">
-                <Flame className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shadow-xs border border-amber-500/20">
+                <Flame className="w-6 h-6 fill-amber-500 text-amber-500" />
               </div>
 
               <div>
@@ -392,16 +447,21 @@ export default function OnboardingPage() {
                 <p className="text-xs text-zinc-500 font-semibold mt-1">Weekly Skin-in-the-Game Stake</p>
               </div>
 
-              <div className="liquid-glass rounded-2xl p-4 text-left text-xs leading-relaxed space-y-2 border border-zinc-200/70 bg-white/60 w-full">
+              <div className="liquid-glass rounded-2xl p-4 text-left text-xs leading-relaxed space-y-2 border border-zinc-200/70 bg-white/60 w-full shadow-xs">
                 <p className="text-zinc-700">
                   <strong className="text-emerald-600">≥85% Consistency:</strong> Complete your pillars and your ₹{STAKE_INR} is preserved while earning AP dividends.
                 </p>
                 <p className="text-zinc-700">
-                  <strong className="text-amber-600">Below 85%:</strong> Stake enters the community reward pool divided among the top-ranked operators in The Arena.
+                  <strong className="text-amber-600">Below 85%:</strong> Stake enters the community reward pool divided among top-ranked operators in The Arena.
                 </p>
               </div>
 
-              {error && <p className="text-rose-600 text-xs font-bold">{error}</p>}
+              {error && (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold flex items-center gap-2 w-full text-left">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <div className="w-full pt-2">
                 <RazorpayCheckout
@@ -413,9 +473,10 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              <p className="text-[10px] text-zinc-400">
-                1 Streak Shield + 50 AP immediately credited upon payment verification.
-              </p>
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 font-medium">
+                <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                <span>1 Streak Shield + 50 AP immediately credited upon initiation.</span>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
