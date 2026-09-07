@@ -6,6 +6,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import RazorpayCheckout from "@/components/onboarding/RazorpayCheckout";
 import { 
   Trophy, 
   Dumbbell, 
@@ -24,7 +25,8 @@ import {
   Circle, 
   Loader2,
   Shield,
-  Clock
+  Clock,
+  AlertTriangle
 } from "lucide-react";
 
 async function compressImage(file: File): Promise<File> {
@@ -86,6 +88,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const [loading, setLoading] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [togglingKey, setTogglingKey] = useState<string | null>(null);
+  const [dismissedGrace, setDismissedGrace] = useState(false);
   const router = useRouter();
 
   const [gymFile, setGymFile] = useState<File | null>(null);
@@ -104,7 +107,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
     auraPoints = 0,
     identityRank = "Initiate",
     currentStreak = 0,
-    streakShields = 0
+    streakShields = 0,
+    protocolStatus = "active"
   } = analytics || {};
 
   const currentShields = userProfile?.streak_shields ?? streakShields ?? 0;
@@ -113,6 +117,37 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const rank = userProfile?.identity_rank || identityRank || "Initiate";
   const movementLabel = userProfile?.movement_label || "Physical Training";
   const grindLabel = userProfile?.grind_label || "Deep Work Block";
+
+  // STATE 3: DAY 10+ -> FULL RENEWAL LOCK INTERFACE
+  if (protocolStatus === "locked") {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-emerald-50/50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full liquid-glass rounded-3xl p-8 border border-white/90 shadow-2xl backdrop-blur-2xl bg-white/85 text-center space-y-6">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-extrabold uppercase tracking-widest">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Subscription Renewal Required</span>
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black text-zinc-900">Keep Your Productivity Alive</h1>
+            <p className="text-xs text-zinc-600 font-medium leading-relaxed">
+              Your 7-day free trial and 2-day grace period have concluded. Secure your ₹10 weekly subscription to continue tracking pillars and accessing AP lobbies.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <RazorpayCheckout
+              amountInr={10}
+              displayName={userProfile?.display_name || userProfile?.full_name || "Operator"}
+              email={userProfile?.email || ""}
+              onSuccess={() => window.location.reload()}
+              onError={(err) => console.error("Renewal failed:", err)}
+            />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   async function awardProfilePoints(apDelta: number, xpDelta: number) {
     const updatedAP = Math.max(0, (userProfile?.aura_points || currentAP || 0) + apDelta);
@@ -145,7 +180,6 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
     try {
       const optimizedFile = await compressImage(gymFile);
-      // Use our standardized uploadProofPhoto helper targeting the public 'proofs' bucket
       const publicUrl = await uploadProofPhoto(optimizedFile, userProfile.id, "gym");
       if (!publicUrl) throw new Error("Failed to upload gym proof to storage.");
 
@@ -354,393 +388,414 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const strokeDashoffset = circumference - (calculatedDailyScore / 100) * circumference;
 
   return (
-    <div className="pt-10 px-4 pb-32 min-h-screen space-y-4 max-w-md mx-auto">
-      {/* HEADER: OPERATOR IDENTITY BAR */}
-      <div className="flex items-center justify-between px-1 mb-1">
-        <div>
-          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Command Center</h1>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs font-mono font-bold text-zinc-500">
-              @{userProfile?.handle || profile?.handle || "operator"}
-            </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
-              {rank}
+    <div className="min-h-screen bg-zinc-50 text-zinc-900 relative">
+      
+      {/* STATE 2: DAYS 8-9 -> SOFT WARNING BANNER (Bypassable) */}
+      {protocolStatus === "grace" && !dismissedGrace && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-3 flex items-center justify-between text-xs font-bold text-amber-900 sticky top-0 z-50 backdrop-blur-md">
+          <div className="flex items-center gap-2 max-w-4xl mx-auto">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Trial Cycle Notice:</strong> Your 7-day trial has concluded. You are in a 2-day grace period before weekly subscription renewal is required.
             </span>
           </div>
+          <button 
+            onClick={() => setDismissedGrace(true)}
+            className="px-3 py-1 bg-amber-500 text-white rounded-xl shadow-xs hover:bg-amber-600 transition-all cursor-pointer shrink-0 ml-4"
+          >
+            Dismiss & Continue →
+          </button>
         </div>
+      )}
 
-        <div className="flex items-center gap-2">
-          <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-orange-600 bg-white/70">
-            <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
-            <span>{currentStreakCount}d</span>
-          </div>
-
-          <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-blue-600 bg-white/70">
-            <Shield className="w-3.5 h-3.5 text-blue-500" />
-            <span>{currentShields}</span>
-          </div>
-
-          <div className="liquid-glass px-3 py-1.5 rounded-2xl flex items-center gap-1.5 border border-white/80 shadow-xs text-xs font-black text-emerald-600 bg-white/70">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{currentAP} AP</span>
-          </div>
-        </div>
-      </div>
-
-      {/* TOP CARD: DAILY GAUNTLET */}
-      <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between border border-white/80 shadow-sm backdrop-blur-xl bg-white/75">
-        <div className="flex-1">
-          <p className="text-zinc-800 font-bold text-base mb-0.5 tracking-tight">Daily Gauntlet</p>
-          <div className="text-zinc-500 text-xs font-medium mb-3">
-            Aura Protocol Score
-            <span className="block text-emerald-600 font-black text-2xl mt-0.5">
-              {calculatedDailyScore}<span className="text-xs text-zinc-400 font-bold">/100</span>
-            </span>
-          </div>
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-            {pillarsCompleteCount} of 7 Disciplines Verified
-          </p>
-        </div>
-        
-        <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
-          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r={radius} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="3.5" />
-            <circle 
-              cx="18" 
-              cy="18" 
-              r={radius} 
-              fill="none" 
-              className="text-emerald-500 drop-shadow-sm transition-all duration-1000 ease-out" 
-              stroke="currentColor" 
-              strokeWidth="3.5" 
-              strokeDasharray={circumference} 
-              strokeDashoffset={strokeDashoffset} 
-              strokeLinecap="round" 
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <Flame className="w-5 h-5 text-emerald-500 mb-0.5" />
-            <span className="text-[11px] font-black text-zinc-800 tabular-nums">{calculatedDailyScore}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* BENTO GRID ANALYTICS */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link 
-          href="/history?tab=work" 
-          className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
-        >
+      <div className="pt-10 px-4 pb-32 max-w-md mx-auto space-y-4">
+        {/* HEADER: OPERATOR IDENTITY BAR */}
+        <div className="flex items-center justify-between px-1 mb-1">
           <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <p className="text-zinc-800 font-bold text-xs tracking-tight truncate">{grindLabel}</p>
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+            <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Command Center</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-xs font-mono font-bold text-zinc-500">
+                @{userProfile?.handle || profile?.handle || "operator"}
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                {rank}
+              </span>
             </div>
-            <p className="text-[10px] text-zinc-400 font-medium">Logged Today</p>
-            <p className="text-xl font-black tabular-nums text-blue-600 mt-1">{editingTime}</p>
           </div>
-          <div className="flex items-end justify-between h-10 gap-1 mt-2">
-            {workTrend.map((height: number, i: number) => (
-              <div key={i} className="w-full bg-blue-500/10 rounded-t-sm relative flex items-end justify-center h-full">
-                <div className="w-full bg-blue-500 rounded-t-sm transition-all" style={{ height: `${Math.max(8, height)}%` }} />
-              </div>
-            ))}
-          </div>
-        </Link>
 
-        <Link 
-          href="/history?tab=gym" 
-          className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
-        >
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <p className="text-zinc-800 font-bold text-xs tracking-tight truncate">{movementLabel}</p>
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+          <div className="flex items-center gap-2">
+            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-orange-600 bg-white/70">
+              <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
+              <span>{currentStreakCount}d</span>
             </div>
-            <p className="text-[10px] text-zinc-400 font-medium">Logged Today</p>
-            <p className="text-xl font-black tabular-nums text-emerald-600 mt-1">{gymTime}</p>
+
+            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-blue-600 bg-white/70">
+              <Shield className="w-3.5 h-3.5 text-blue-500" />
+              <span>{currentShields}</span>
+            </div>
+
+            <div className="liquid-glass px-3 py-1.5 rounded-2xl flex items-center gap-1.5 border border-white/80 shadow-xs text-xs font-black text-emerald-600 bg-white/70">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>{currentAP} AP</span>
+            </div>
           </div>
-          <div className="flex items-end justify-between h-10 gap-1 mt-2">
-            {gymTrend.map((height: number, i: number) => (
-              <div key={i} className="w-full bg-emerald-500/10 rounded-t-sm relative flex items-end justify-center h-full">
-                <div className="w-full bg-emerald-500 rounded-t-sm transition-all" style={{ height: `${Math.max(8, height)}%` }} />
-              </div>
-            ))}
+        </div>
+
+        {/* TOP CARD: DAILY GAUNTLET */}
+        <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between border border-white/80 shadow-sm backdrop-blur-xl bg-white/75">
+          <div className="flex-1">
+            <p className="text-zinc-800 font-bold text-base mb-0.5 tracking-tight">Daily Gauntlet</p>
+            <div className="text-zinc-500 text-xs font-medium mb-3">
+              Aura Protocol Score
+              <span className="block text-emerald-600 font-black text-2xl mt-0.5">
+                {calculatedDailyScore}<span className="text-xs text-zinc-400 font-bold">/100</span>
+              </span>
+            </div>
+            <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+              {pillarsCompleteCount} of 7 Disciplines Verified
+            </p>
           </div>
-        </Link>
-
-        <Link 
-          href="/arena" 
-          className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
-        >
-          <Trophy className="w-6 h-6 text-amber-500 mb-1" />
-          <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">Percentile</p>
-          <p className="text-2xl font-black tabular-nums text-zinc-900 mt-0.5">Top {percentile}%</p>
-          <p className="text-[9px] text-emerald-600 font-bold mt-1">View Arena →</p>
-        </Link>
-
-        <Link 
-          href="/autopsy" 
-          className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
-        >
-          <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Consistency</p>
-          <p className="text-3xl font-black tabular-nums text-zinc-900">{consistencyScore}%</p>
-          <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Past 30 Days</p>
-        </Link>
-      </div>
-
-      {/* PROOF ACTIONS SECTION */}
-      <div className="mt-4">
-        <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
-          Visual Proof Pillars
-        </h2>
-        <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-2 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
           
-          {/* Gym Verification */}
-          <div className={`rounded-2xl transition-all overflow-hidden border ${isGymDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100"}`}>
-            <button 
-              onClick={() => setActiveAction(activeAction === "gym" ? null : "gym")} 
-              className="flex items-center justify-between p-3.5 w-full text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl">
-                  <Dumbbell className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-zinc-800">{movementLabel}</p>
-                  <p className="text-[10px] text-zinc-400 font-medium">+10 AP • +25 XP • 20% Weight</p>
-                </div>
+          <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r={radius} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="3.5" />
+              <circle 
+                cx="18" 
+                cy="18" 
+                r={radius} 
+                fill="none" 
+                className="text-emerald-500 drop-shadow-sm transition-all duration-1000 ease-out" 
+                stroke="currentColor" 
+                strokeWidth="3.5" 
+                strokeDasharray={circumference} 
+                strokeDashoffset={strokeDashoffset} 
+                strokeLinecap="round" 
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <Flame className="w-5 h-5 text-emerald-500 mb-0.5" />
+              <span className="text-[11px] font-black text-zinc-800 tabular-nums">{calculatedDailyScore}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* BENTO GRID ANALYTICS */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link 
+            href="/history?tab=work" 
+            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-zinc-800 font-bold text-xs tracking-tight truncate">{grindLabel}</p>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
               </div>
-              <CheckCircle2 className={`w-5 h-5 transition-colors ${isGymDone ? "text-emerald-500" : "text-zinc-300"}`} />
-            </button>
-            
-            {activeAction === "gym" && !isGymDone && (
-              <div className="px-3 pb-3 pt-1 space-y-3">
-                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
-                  <Camera className="w-5 h-5 text-zinc-400" />
-                  <p className="text-xs text-zinc-600 font-medium">
-                    Show today&apos;s gesture: <strong className="text-zinc-900">{typeof gesture === "string" ? gesture : (gesture?.name || gesture?.gesture_name || "✌️ Peace Sign")}</strong>
-                  </p>
-                  <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{gymFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setGymFile(e.target.files?.[0] || null)} />
-                  </label>
+              <p className="text-[10px] text-zinc-400 font-medium">Logged Today</p>
+              <p className="text-xl font-black tabular-nums text-blue-600 mt-1">{editingTime}</p>
+            </div>
+            <div className="flex items-end justify-between h-10 gap-1 mt-2">
+              {workTrend.map((height: number, i: number) => (
+                <div key={i} className="w-full bg-blue-500/10 rounded-t-sm relative flex items-end justify-center h-full">
+                  <div className="w-full bg-blue-500 rounded-t-sm transition-all" style={{ height: `${Math.max(8, height)}%` }} />
                 </div>
-                <div className="flex gap-2">
-                  <Link href="/time" className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Stopwatch</span>
-                  </Link>
+              ))}
+            </div>
+          </Link>
+
+          <Link 
+            href="/history?tab=gym" 
+            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-0.5">
+                <p className="text-zinc-800 font-bold text-xs tracking-tight truncate">{movementLabel}</p>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-[10px] text-zinc-400 font-medium">Logged Today</p>
+              <p className="text-xl font-black tabular-nums text-emerald-600 mt-1">{gymTime}</p>
+            </div>
+            <div className="flex items-end justify-between h-10 gap-1 mt-2">
+              {gymTrend.map((height: number, i: number) => (
+                <div key={i} className="w-full bg-emerald-500/10 rounded-t-sm relative flex items-end justify-center h-full">
+                  <div className="w-full bg-emerald-500 rounded-t-sm transition-all" style={{ height: `${Math.max(8, height)}%` }} />
+                </div>
+              ))}
+            </div>
+          </Link>
+
+          <Link 
+            href="/arena" 
+            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
+          >
+            <Trophy className="w-6 h-6 text-amber-500 mb-1" />
+            <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">Percentile</p>
+            <p className="text-2xl font-black tabular-nums text-zinc-900 mt-0.5">Top {percentile}%</p>
+            <p className="text-[9px] text-emerald-600 font-bold mt-1">View Arena →</p>
+          </Link>
+
+          <Link 
+            href="/autopsy" 
+            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
+          >
+            <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Consistency</p>
+            <p className="text-3xl font-black tabular-nums text-zinc-900">{consistencyScore}%</p>
+            <p className="text-[10px] text-zinc-400 font-medium mt-0.5">Past 30 Days</p>
+          </Link>
+        </div>
+
+        {/* PROOF ACTIONS SECTION */}
+        <div className="mt-4">
+          <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
+            Visual Proof Pillars
+          </h2>
+          <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-2 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
+            
+            {/* Gym Verification */}
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isGymDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100"}`}>
+              <button 
+                onClick={() => setActiveAction(activeAction === "gym" ? null : "gym")} 
+                className="flex items-center justify-between p-3.5 w-full text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                    <Dumbbell className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-800">{movementLabel}</p>
+                    <p className="text-[10px] text-zinc-400 font-medium">+10 AP • +25 XP • 20% Weight</p>
+                  </div>
+                </div>
+                <CheckCircle2 className={`w-5 h-5 transition-colors ${isGymDone ? "text-emerald-500" : "text-zinc-300"}`} />
+              </button>
+              
+              {activeAction === "gym" && !isGymDone && (
+                <div className="px-3 pb-3 pt-1 space-y-3">
+                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
+                    <Camera className="w-5 h-5 text-zinc-400" />
+                    <p className="text-xs text-zinc-600 font-medium">
+                      Show today&apos;s gesture: <strong className="text-zinc-900">{typeof gesture === "string" ? gesture : (gesture?.name || gesture?.gesture_name || "✌️ Peace Sign")}</strong>
+                    </p>
+                    <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{gymFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setGymFile(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link href="/time" className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Stopwatch</span>
+                    </Link>
+                    <button 
+                      onClick={handleGymVerification} 
+                      disabled={loading || !gymFile} 
+                      className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl transition-all shadow-sm ${
+                        gymFile ? "bg-zinc-900 hover:bg-zinc-800" : "bg-zinc-300 cursor-not-allowed"
+                      }`}
+                    >
+                      {loading ? "Verifying..." : "Upload Proof"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Deep Work Verification */}
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isWorkDone ? "bg-blue-500/5 border-blue-500/20" : "bg-white/60 border-zinc-100"}`}>
+              <button 
+                onClick={() => setActiveAction(activeAction === "work" ? null : "work")} 
+                className="flex items-center justify-between p-3.5 w-full text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-500/10 text-blue-600 rounded-xl">
+                    <MonitorPlay className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-800">{grindLabel}</p>
+                    <p className="text-[10px] text-zinc-400 font-medium">+10 AP • +30 XP • 30% Weight</p>
+                  </div>
+                </div>
+                <CheckCircle2 className={`w-5 h-5 transition-colors ${isWorkDone ? "text-blue-500" : "text-zinc-300"}`} />
+              </button>
+              
+              {activeAction === "work" && !isWorkDone && (
+                <div className="px-3 pb-3 pt-1 space-y-3">
+                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
+                    <Camera className="w-5 h-5 text-zinc-400" />
+                    <p className="text-xs text-zinc-600 font-medium">Capture workspace visual proof</p>
+                    <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{workFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setWorkFile(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link href="/time" className="flex-1 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Stopwatch</span>
+                    </Link>
+                    <button 
+                      onClick={handleWorkVerification} 
+                      disabled={loading || !workFile} 
+                      className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl transition-all shadow-sm ${
+                        workFile ? "bg-zinc-900 hover:bg-zinc-800" : "bg-zinc-300 cursor-not-allowed"
+                      }`}
+                    >
+                      {loading ? "Saving..." : "Upload Proof"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Meals Logging */}
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isNutritionDone ? "bg-orange-500/5 border-orange-500/20" : "bg-white/60 border-zinc-100"}`}>
+              <button 
+                onClick={() => setActiveAction(activeAction === "meals" ? null : "meals")} 
+                className="flex items-center justify-between p-3.5 w-full text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-orange-500/10 text-orange-600 rounded-xl">
+                    <Utensils className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-800">Target Nutrition Protocol</p>
+                    <p className="text-[10px] text-zinc-400 font-medium">{mealsLoggedCount}/5 Meals • 15% Weight</p>
+                  </div>
+                </div>
+                <CheckCircle2 className={`w-5 h-5 transition-colors ${isNutritionDone ? "text-orange-500" : "text-zinc-300"}`} />
+              </button>
+              
+              {activeAction === "meals" && mealsLoggedCount < 5 && (
+                <div className="px-3 pb-3 pt-1 space-y-3">
+                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
+                    <Camera className="w-5 h-5 text-zinc-400" />
+                    <p className="text-xs text-zinc-600 font-medium">Capture meal photo ({mealsLoggedCount + 1}/5)</p>
+                    <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{mealFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setMealFile(e.target.files?.[0] || null)} />
+                    </label>
+                  </div>
                   <button 
-                    onClick={handleGymVerification} 
-                    disabled={loading || !gymFile} 
-                    className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl transition-all shadow-sm ${
-                      gymFile ? "bg-zinc-900 hover:bg-zinc-800" : "bg-zinc-300 cursor-not-allowed"
+                    onClick={handleMealLogging} 
+                    disabled={loading || !mealFile} 
+                    className={`w-full py-2.5 text-white font-bold text-xs rounded-xl transition-all shadow-sm ${
+                      mealFile ? "bg-orange-500 hover:bg-orange-600" : "bg-zinc-300 cursor-not-allowed"
                     }`}
                   >
-                    {loading ? "Verifying..." : "Upload Proof"}
+                    {loading ? "Logging..." : `Log Meal (${mealsLoggedCount + 1}/5)`}
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Deep Work Verification */}
-          <div className={`rounded-2xl transition-all overflow-hidden border ${isWorkDone ? "bg-blue-500/5 border-blue-500/20" : "bg-white/60 border-zinc-100"}`}>
-            <button 
-              onClick={() => setActiveAction(activeAction === "work" ? null : "work")} 
-              className="flex items-center justify-between p-3.5 w-full text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-500/10 text-blue-600 rounded-xl">
-                  <MonitorPlay className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-zinc-800">{grindLabel}</p>
-                  <p className="text-[10px] text-zinc-400 font-medium">+10 AP • +30 XP • 30% Weight</p>
-                </div>
-              </div>
-              <CheckCircle2 className={`w-5 h-5 transition-colors ${isWorkDone ? "text-blue-500" : "text-zinc-300"}`} />
-            </button>
-            
-            {activeAction === "work" && !isWorkDone && (
-              <div className="px-3 pb-3 pt-1 space-y-3">
-                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
-                  <Camera className="w-5 h-5 text-zinc-400" />
-                  <p className="text-xs text-zinc-600 font-medium">Capture workspace visual proof</p>
-                  <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{workFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setWorkFile(e.target.files?.[0] || null)} />
-                  </label>
-                </div>
-                <div className="flex gap-2">
-                  <Link href="/time" className="flex-1 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Stopwatch</span>
-                  </Link>
-                  <button 
-                    onClick={handleWorkVerification} 
-                    disabled={loading || !workFile} 
-                    className={`flex-1 py-2.5 text-white font-bold text-xs rounded-xl transition-all shadow-sm ${
-                      workFile ? "bg-zinc-900 hover:bg-zinc-800" : "bg-zinc-300 cursor-not-allowed"
-                    }`}
-                  >
-                    {loading ? "Saving..." : "Upload Proof"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Meals Logging */}
-          <div className={`rounded-2xl transition-all overflow-hidden border ${isNutritionDone ? "bg-orange-500/5 border-orange-500/20" : "bg-white/60 border-zinc-100"}`}>
-            <button 
-              onClick={() => setActiveAction(activeAction === "meals" ? null : "meals")} 
-              className="flex items-center justify-between p-3.5 w-full text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-orange-500/10 text-orange-600 rounded-xl">
-                  <Utensils className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-zinc-800">Target Nutrition Protocol</p>
-                  <p className="text-[10px] text-zinc-400 font-medium">{mealsLoggedCount}/5 Meals • 15% Weight</p>
-                </div>
-              </div>
-              <CheckCircle2 className={`w-5 h-5 transition-colors ${isNutritionDone ? "text-orange-500" : "text-zinc-300"}`} />
-            </button>
-            
-            {activeAction === "meals" && mealsLoggedCount < 5 && (
-              <div className="px-3 pb-3 pt-1 space-y-3">
-                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
-                  <Camera className="w-5 h-5 text-zinc-400" />
-                  <p className="text-xs text-zinc-600 font-medium">Capture meal photo ({mealsLoggedCount + 1}/5)</p>
-                  <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{mealFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setMealFile(e.target.files?.[0] || null)} />
-                  </label>
-                </div>
-                <button 
-                  onClick={handleMealLogging} 
-                  disabled={loading || !mealFile} 
-                  className={`w-full py-2.5 text-white font-bold text-xs rounded-xl transition-all shadow-sm ${
-                    mealFile ? "bg-orange-500 hover:bg-orange-600" : "bg-zinc-300 cursor-not-allowed"
-                  }`}
-                >
-                  {loading ? "Logging..." : `Log Meal (${mealsLoggedCount + 1}/5)`}
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* PROTOCOL ROUTINE DISCIPLINES */}
-      <div className="mt-4">
-        <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
-          Routine Disciplines
-        </h2>
-        <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
-          
-          <div 
-            onClick={() => handleTogglePillar("morning_routine", 5, 15)}
-            className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-              isMorningDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
-                <Sun className="w-4 h-4" />
+        {/* PROTOCOL ROUTINE DISCIPLINES */}
+        <div className="mt-4">
+          <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
+            Routine Disciplines
+          </h2>
+          <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
+            
+            <div 
+              onClick={() => handleTogglePillar("morning_routine", 5, 15)}
+              className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
+                isMorningDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
+                  <Sun className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-800">Morning Protocol</p>
+                  <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +15 XP • 10% Weight</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-800">Morning Protocol</p>
-                <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +15 XP • 10% Weight</p>
-              </div>
+              {togglingKey === "morning_routine" ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              ) : isMorningDone ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              ) : (
+                <Circle className="w-5 h-5 text-zinc-300" />
+              )}
             </div>
-            {togglingKey === "morning_routine" ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-            ) : isMorningDone ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <Circle className="w-5 h-5 text-zinc-300" />
-            )}
-          </div>
 
-          <div 
-            onClick={() => handleTogglePillar("learning", 5, 15)}
-            className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-              isLearningDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
-                <BookOpen className="w-4 h-4" />
+            <div 
+              onClick={() => handleTogglePillar("learning", 5, 15)}
+              className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
+                isLearningDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-800">Active Learning Block</p>
+                  <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +15 XP • 10% Weight</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-800">Active Learning Block</p>
-                <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +15 XP • 10% Weight</p>
-              </div>
+              {togglingKey === "learning" ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              ) : isLearningDone ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              ) : (
+                <Circle className="w-5 h-5 text-zinc-300" />
+              )}
             </div>
-            {togglingKey === "learning" ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-            ) : isLearningDone ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <Circle className="w-5 h-5 text-zinc-300" />
-            )}
-          </div>
 
-          <div 
-            onClick={() => handleTogglePillar("sleep_target", 5, 15)}
-            className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-              isSleepDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-500/10 text-purple-600 rounded-xl">
-                <Moon className="w-4 h-4" />
+            <div 
+              onClick={() => handleTogglePillar("sleep_target", 5, 15)}
+              className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
+                isSleepDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-500/10 text-purple-600 rounded-xl">
+                  <Moon className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-800">Sleep Target (7h+ Rest)</p>
+                  <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +15 XP • 10% Weight</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-800">Sleep Target (7h+ Rest)</p>
-                <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +15 XP • 10% Weight</p>
-              </div>
+              {togglingKey === "sleep_target" ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              ) : isSleepDone ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              ) : (
+                <Circle className="w-5 h-5 text-zinc-300" />
+              )}
             </div>
-            {togglingKey === "sleep_target" ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-            ) : isSleepDone ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <Circle className="w-5 h-5 text-zinc-300" />
-            )}
-          </div>
 
-          <div 
-            onClick={() => handleTogglePillar("daily_review", 5, 10)}
-            className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-              isReviewDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-teal-500/10 text-teal-600 rounded-xl">
-                <ClipboardCheck className="w-4 h-4" />
+            <div 
+              onClick={() => handleTogglePillar("daily_review", 5, 10)}
+              className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
+                isReviewDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-teal-500/10 text-teal-600 rounded-xl">
+                  <ClipboardCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-800">Evening Review & Planning</p>
+                  <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +10 XP • 5% Weight</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-800">Evening Review & Planning</p>
-                <p className="text-[10px] text-zinc-400 font-medium">+5 AP • +10 XP • 5% Weight</p>
-              </div>
+              {togglingKey === "daily_review" ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+              ) : isReviewDone ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              ) : (
+                <Circle className="w-5 h-5 text-zinc-300" />
+              )}
             </div>
-            {togglingKey === "daily_review" ? (
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
-            ) : isReviewDone ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            ) : (
-              <Circle className="w-5 h-5 text-zinc-300" />
-            )}
-          </div>
 
+          </div>
         </div>
       </div>
     </div>
