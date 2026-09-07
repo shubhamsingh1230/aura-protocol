@@ -15,7 +15,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-gradient-to-br from-zinc-100 via-zinc-50 to-zinc-200 text-zinc-900 min-h-screen selection:bg-emerald-500 selection:text-white">
+      {/* Removed the Tailwind background classes so globals.css can take over */}
+      <body className="text-zinc-900 min-h-screen selection:bg-emerald-500 selection:text-white">
         {/* Main page content */}
         {children}
         
