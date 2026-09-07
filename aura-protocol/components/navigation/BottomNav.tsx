@@ -24,8 +24,9 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  // Exclude dock on auth, onboarding flow, viral invite landing, and paywall
+  // Exclude dock on the root landing page, auth, onboarding, etc.
   const isExcluded = 
+    pathname === "/" || // <--- ADDED THIS LINE TO HIDE ON ROOT LOGIN PAGE
     pathname.startsWith("/login") || 
     pathname.startsWith("/auth") || 
     pathname.startsWith("/onboarding") || 
