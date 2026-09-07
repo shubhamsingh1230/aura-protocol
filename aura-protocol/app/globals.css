@@ -8,7 +8,7 @@
 
 html,
 body {
-  background: #eef1f5;
+  background: #f4f4f6;
   color: #17171e;
   min-height: 100vh;
 }
@@ -18,13 +18,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 
-  /* Ambient multi-color refractive wash behind the glass panels */
+  /* VIBRANT AMBIENT BLOBS: Boosted opacity and spread so the glass has something to refract */
   background-image: 
-    radial-gradient(circle at 12% 18%, rgba(47, 143, 224, 0.16), transparent 45%),
-    radial-gradient(circle at 88% 12%, rgba(31, 174, 100, 0.14), transparent 42%),
-    radial-gradient(circle at 50% 95%, rgba(201, 151, 31, 0.12), transparent 50%);
+    radial-gradient(circle at 15% 50%, rgba(47, 143, 224, 0.35), transparent 35%),
+    radial-gradient(circle at 85% 30%, rgba(31, 174, 100, 0.25), transparent 35%),
+    radial-gradient(circle at 50% 10%, rgba(201, 151, 31, 0.20), transparent 40%);
   background-attachment: fixed;
-  background-color: #eef1f5;
+  background-color: #f4f4f6;
 }
 
 * {
@@ -53,32 +53,32 @@ body {
 
 /*
   High-End Light Liquid Glass Surface
-  Deepened backdrop blur and saturation to make the background gradients 
-  vividly bend through the cards, with a sharp top specular highlight.
+  - Opacity dropped to 0.25 for extreme transparency.
+  - Specular top inner shadow added for 3D thickness.
 */
 .liquid-glass, .glass {
-  background: rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   box-shadow:
-    0 12px 40px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 1);
+    0 12px 32px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-/* Universal Auto-Enhancer: Automatically upgrades standard semi-transparent cards to liquid glass */
+/* Universal Auto-Enhancer: Automatically upgrades standard semi-transparent cards to true liquid glass */
 .bg-white\/70, 
 .bg-white\/75, 
 .bg-white\/80, 
 .bg-white\/65, 
 .bg-white\/60 {
-  background: rgba(255, 255, 255, 0.68) !important;
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
   box-shadow:
-    0 12px 40px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 1) !important;
+    0 12px 32px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
 .tabular {
