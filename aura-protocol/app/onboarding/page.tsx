@@ -18,20 +18,22 @@ import {
   Laptop,
   Check,
   User,
-  AlertCircle
+  AlertCircle,
+  Zap,
+  Gift
 } from "lucide-react";
 
-const STAKE_INR = 10;
+const SUBSCRIPTION_INR = 10;
 
 const CONTRACT_TERMS = [
-  "I will verify all daily pillars using genuine anti-cheat camera proofs every single day.",
-  "I understand that recycled, faked, or bypassed proofs will be flagged and invalidated by the protocol referees.",
-  "I receive 1 Streak Shield upon initiation to safeguard my progress against unforeseen emergencies.",
-  "I understand that raising false flags on peer proofs penalizes my own accumulated Aura Points (AP).",
-  `My ₹${STAKE_INR} weekly commitment is locked to my consistency. Hit ≥85% verification to secure rewards and AP dividends; drop below and accountability takes over.`,
+  "I will track and verify my daily movement and deep work pillars using genuine anti-cheat camera proofs.",
+  "I understand that recycled, bypassed, or faked proofs will be flagged and invalidated by the protocol system.",
+  "I receive 1 Streak Shield and 50 Aura Points (AP) instantly upon starting my free trial.",
+  "I understand that raising false flags on peer proofs penalizes my own accumulated Aura Points.",
+  `My ₹${SUBSCRIPTION_INR} weekly maintenance subscription keeps the utility ad-free, maintains streak protections, and unlocks progressive AP lobbies.`,
 ];
 
-type Step = "contract" | "sign" | "customize" | "stake";
+type Step = "contract" | "sign" | "customize" | "trial";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -158,27 +160,29 @@ export default function OnboardingPage() {
       return;
     }
 
-    setStep("stake");
+    setStep("trial");
   }
 
-  async function handleStakeSuccess() {
+  async function handleTrialSuccess() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.replace("/dashboard");
       return;
     }
 
+    // Set 7-day free trial expiration window
     const trialEnds = new Date();
     trialEnds.setDate(trialEnds.getDate() + 7);
 
-    // 1. Credit starting operator assets & mark onboarding as completed permanently
+    // 1. Credit starting assets & activate 7-day trial status
     await supabase
       .from("profiles")
       .update({
-        subscription_status: "active",
+        subscription_status: "trialing",
         trial_ends_at: trialEnds.toISOString(),
         streak_shields: 1,
         aura_points: 50,
+        earned_ap: 50,
         current_streak: 1,
         longest_streak: 1,
         onboarding_completed: true,
@@ -200,12 +204,12 @@ export default function OnboardingPage() {
         { onConflict: "user_id,log_date" }
       );
 
-    // 3. Queue welcome protocol transmission
+    // 3. Queue welcome notification
     await supabase.from("notifications").insert({
       user_id: user.id,
       actor_id: user.id,
       type: "welcome",
-      message: "🛡️ Season 1 Protocol Activated: 1 Streak Shield and 50 AP credited. Welcome to the Arena.",
+      message: "🎁 7-Day Free Trial Activated: 1 Streak Shield and 50 AP credited to your profile. Enjoy full utility access!",
       is_read: false,
     });
 
@@ -218,7 +222,7 @@ export default function OnboardingPage() {
         
         {/* Step Indicator */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          {(["contract", "sign", "customize", "stake"] as Step[]).map((s) => (
+          {(["contract", "sign", "customize", "trial"] as Step[]).map((s) => (
             <div
               key={s}
               className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -241,9 +245,9 @@ export default function OnboardingPage() {
               <div className="space-y-1">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-[10px] font-extrabold uppercase tracking-widest mb-1">
                   <Sparkles className="w-3 h-3 text-emerald-600" />
-                  <span>Season 1 Protocol</span>
+                  <span>Protocol Agreement</span>
                 </div>
-                <h1 className="text-2xl font-black text-zinc-900 tracking-tight">The Anti-Cheat Contract</h1>
+                <h1 className="text-2xl font-black text-zinc-900 tracking-tight">The Productivity Charter</h1>
               </div>
 
               <div className="space-y-2.5">
@@ -262,7 +266,7 @@ export default function OnboardingPage() {
                 onClick={() => setStep("sign")}
                 className="mt-4 w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-3.5 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                <span>I Understand & Accept Protocol</span>
+                <span>I Accept & Agree</span>
                 <ArrowRight className="w-4 h-4" />
               </motion.button>
             </motion.div>
@@ -329,7 +333,7 @@ export default function OnboardingPage() {
                   <input
                     value={signature}
                     onChange={(e) => setSignature(e.target.value)}
-                    placeholder="Sign Protocol Agreement"
+                    placeholder="Sign Charter Agreement"
                     className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-sm text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                     style={{ fontFamily: "cursive" }}
                   />
@@ -375,9 +379,9 @@ export default function OnboardingPage() {
             >
               <div className="space-y-1">
                 <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Pillar Customization</p>
-                <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Configure Your 7 Pillars</h1>
+                <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Configure Your Daily Pillars</h1>
                 <p className="text-xs text-zinc-500 font-medium leading-relaxed">
-                  Tailor your daily movement and deep work focuses for live camera proof verification.
+                  Tailor your daily movement and deep work focuses for anti-cheat verification.
                 </p>
               </div>
 
@@ -403,7 +407,7 @@ export default function OnboardingPage() {
                   <input
                     value={grindLabel}
                     onChange={(e) => setGrindLabel(e.target.value)}
-                    placeholder="e.g. Video Production, CS Modules, Meta Ads"
+                    placeholder="e.g. Video Production, Coding, Design"
                     className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-xs font-semibold text-zinc-900 outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                   />
                 </div>
@@ -443,37 +447,37 @@ export default function OnboardingPage() {
                   onClick={handleCustomize}
                   className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-3.5 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  <span>Save Configuration & Proceed</span>
+                  <span>Save Pillars & Proceed</span>
                   <ArrowRight className="w-4 h-4" />
                 </motion.button>
               </div>
             </motion.div>
           )}
 
-          {/* STEP 4: STAKE */}
-          {step === "stake" && (
+          {/* STEP 4: TRIAL ACTIVATION */}
+          {step === "trial" && (
             <motion.div
-              key="stake"
+              key="trial"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               className="flex flex-col items-center justify-center text-center space-y-4"
             >
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shadow-xs border border-amber-500/20">
-                <Flame className="w-6 h-6 fill-amber-500 text-amber-500" />
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shadow-xs border border-emerald-500/20">
+                <Gift className="w-6 h-6 text-emerald-600" />
               </div>
 
               <div>
-                <div className="text-5xl font-black text-zinc-900 tabular-nums">₹{STAKE_INR}</div>
-                <p className="text-xs text-zinc-500 font-semibold mt-1">Weekly Skin-in-the-Game Protocol Commitment</p>
+                <div className="text-3xl font-black text-zinc-900">7 Days Free Trial</div>
+                <p className="text-xs text-zinc-500 font-semibold mt-1">Full access to anti-cheat tracking, arenas & AP lobbies</p>
               </div>
 
               <div className="liquid-glass rounded-2xl p-4 text-left text-xs leading-relaxed space-y-2 border border-zinc-200/70 bg-white/60 w-full shadow-xs">
                 <p className="text-zinc-700">
-                  <strong className="text-emerald-600">≥85% Consistency:</strong> Verify your pillars with anti-cheat proofs and your ₹{STAKE_INR} is fully preserved while unlocking AP dividends.
+                  <strong className="text-emerald-600">Zero Upfront Charge:</strong> Enjoy full real-time utility access for 7 days completely free. 
                 </p>
                 <p className="text-zinc-700">
-                  <strong className="text-amber-600">Below 85%:</strong> Unverified stakes flow directly into the community reward pool distributed among elite Arena operators.
+                  <strong className="text-zinc-900">After 7 Days:</strong> Continue your productivity game for just <span className="font-bold text-emerald-600">₹{SUBSCRIPTION_INR} weekly</span> to keep ads away and maintenance active.
                 </p>
               </div>
 
@@ -485,18 +489,18 @@ export default function OnboardingPage() {
               )}
 
               <div className="w-full pt-2">
-                <RazorpayCheckout
-                  amountInr={STAKE_INR}
-                  displayName={displayName}
-                  email={email}
-                  onSuccess={handleStakeSuccess}
-                  onError={(err) => setError(typeof err === "string" ? err : "Payment failed")}
-                />
+                <button
+                  onClick={handleTrialSuccess}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-2xl py-4 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <span>Activate 7-Day Free Trial & Enter Console</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 font-medium">
                 <Shield className="w-3.5 h-3.5 text-emerald-600" />
-                <span>1 Streak Shield + 50 AP instantly credited upon initialization.</span>
+                <span>1 Streak Shield + 50 AP immediately credited upon initiation.</span>
               </div>
             </motion.div>
           )}
