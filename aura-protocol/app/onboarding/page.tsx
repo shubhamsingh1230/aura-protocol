@@ -48,18 +48,34 @@ export default function OnboardingPage() {
   const [handleAvailable, setHandleAvailable] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if user is logged in AND if they already finished onboarding
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
+    async function checkOnboardingStatus() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         router.replace("/login");
         return;
       }
-      const userEmail = data.user.email ?? "";
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", user.id)
+        .single();
+
+      if (profile?.onboarding_completed) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      const userEmail = user.email ?? "";
       const baseName = userEmail.split("@")[0] ?? "";
       setEmail(userEmail);
       setDisplayName((prev) => prev || baseName);
       setHandle((prev) => prev || baseName.toLowerCase().replace(/[^a-z0-9_]/g, ""));
-    });
+    }
+
+    checkOnboardingStatus();
   }, [router, supabase]);
 
   // Debounced handle validation
@@ -110,6 +126,7 @@ export default function OnboardingPage() {
       identity_rank: "Initiate",
       timezone_offset: getDeviceTimezoneOffset(),
       contract_signed_at: new Date().toISOString(),
+      onboarding_completed: true, // Marked complete here to prevent loops
     });
 
     if (updateError) {
@@ -144,7 +161,7 @@ export default function OnboardingPage() {
     setStep("stake");
   }
 
- async function handleStakeSuccess() {
+  async function handleStakeSuccess() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.replace("/dashboard");
@@ -154,7 +171,7 @@ export default function OnboardingPage() {
     const trialEnds = new Date();
     trialEnds.setDate(trialEnds.getDate() + 7);
 
-    // 1. Credit starting operator assets & mark onboarding as completed permanently
+    // Credit starting operator assets & mark onboarding as completed permanently
     await supabase
       .from("profiles")
       .update({
@@ -164,11 +181,11 @@ export default function OnboardingPage() {
         aura_points: 50,
         current_streak: 1,
         longest_streak: 1,
-        onboarding_completed: true, // <--- THIS LINE FIXES THE LOOP FOREVER
+        onboarding_completed: true,
       })
       .eq("id", user.id);
 
-    // 2. Initialize Today's Daily Log entry
+    // Initialize Today's Daily Log entry
     const todayDate = new Date().toISOString().split("T")[0];
     await supabase
       .from("daily_logs")
@@ -183,7 +200,7 @@ export default function OnboardingPage() {
         { onConflict: "user_id,log_date" }
       );
 
-    // 3. Queue welcome protocol transmission
+    // Queue welcome protocol transmission
     await supabase.from("notifications").insert({
       user_id: user.id,
       actor_id: user.id,
