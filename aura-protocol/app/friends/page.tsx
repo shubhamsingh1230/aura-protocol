@@ -13,20 +13,22 @@ import {
   Search, 
   Loader2, 
   Sparkles,
-  ArrowRight,
-  Share2,
   Copy,
   CheckCircle2,
   Bell,
-  Send,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Target,
+  Swords,
+  Globe
 } from "lucide-react";
 
 interface Profile {
   id: string;
   full_name: string | null;
   handle: string | null;
-  aura_points: number;
+  earned_ap: number;
+  vault_ap: number;
   identity_rank: string;
   current_streak?: number;
 }
@@ -37,8 +39,25 @@ interface FriendItem {
   todayCompleted?: boolean;
 }
 
+interface Arena {
+  id: string;
+  name: string;
+  creator_id: string;
+}
+
+// 7-Day Universal Task Deck (General Public & Elementarily Verifiable)
+const DAILY_TASKS = [
+  { day: 1, title: "10,000 Step Threshold", verification: "Step counter app screenshot" },
+  { day: 2, title: "3 Liters Water Protocol", verification: "Timestamped water bottle photo" },
+  { day: 3, title: "Digital Sunset (No Scroll)", verification: "Screen time dashboard screenshot" },
+  { day: 4, title: "20-Page Read Sprint", verification: "Photo of finished page with handle note" },
+  { day: 5, title: "Clean Fuel / Zero Fast Food", verification: "Home-cooked or clean meal photo" },
+  { day: 6, title: "15-Minute Mobility Flow", verification: "Fitness tracker workout completion screen" },
+  { day: 7, title: "Weekly Execution Blueprint", verification: "Photo of handwritten goals or notes app" },
+];
+
 export default function FriendsPage() {
-  const [activeTab, setActiveTab] = useState<"squad" | "requests" | "add">("squad");
+  const [activeTab, setActiveTab] = useState<"squad" | "requests" | "add" | "arenas">("squad");
   const [friends, setFriends] = useState<FriendItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendItem[]>([]);
   const [myProfile, setMyProfile] = useState<Profile | null>(null);
@@ -49,10 +68,21 @@ export default function FriendsPage() {
   const [nudgedMap, setNudgedMap] = useState<Record<string, boolean>>({});
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
+  // Arena States
+  const [arenas, setArenas] = useState<Arena[]>([]);
+  const [newArenaName, setNewArenaName] = useState("");
+  const [selectedArena, setSelectedArena] = useState<Arena | null>(null);
+  const [arenaMembers, setArenaMembers] = useState<any[]>([]);
+  const [bounties, setBounties] = useState<any[]>([]);
+  const [bountyTarget, setBountyTarget] = useState("");
+  const [bountyWager, setBountyWager] = useState(20);
+  const [bountyTask, setBountyTask] = useState("50 Pushups / Timed Video Proof");
+
   const supabase = createClient();
 
   useEffect(() => {
     fetchSocialData();
+    fetchArenas();
   }, []);
 
   async function fetchSocialData() {
@@ -60,16 +90,16 @@ export default function FriendsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 1. Fetch current operator profile
+    // 1. Fetch current operator profile (including dual-ledger AP)
     const { data: profileData } = await supabase
       .from("profiles")
-      .select("id, full_name, handle, aura_points, identity_rank, current_streak")
+      .select("id, full_name, handle, earned_ap, vault_ap, identity_rank, current_streak")
       .eq("id", user.id)
       .single();
 
     setMyProfile(profileData);
 
-    // 2. Fetch all friendships involving current operator
+    // 2. Fetch friendships
     const { data: connections } = await supabase
       .from("friendships")
       .select("id, user_id, friend_id, status")
@@ -90,15 +120,13 @@ export default function FriendsPage() {
     const allPartnerIds = [...acceptedPairs, ...pendingPairs].map((p) => p.profileId);
 
     if (allPartnerIds.length > 0) {
-      // 3. Batch resolve member profiles
       const { data: memberProfiles } = await supabase
         .from("profiles")
-        .select("id, full_name, handle, aura_points, identity_rank, current_streak")
+        .select("id, full_name, handle, earned_ap, vault_ap, identity_rank, current_streak")
         .in("id", allPartnerIds);
 
       const profileMap = new Map((memberProfiles || []).map((p) => [p.id, p]));
 
-      // 4. Batch resolve today's gauntlet completion for squadmates
       const todayDate = new Date().toISOString().split("T")[0];
       const { data: todayLogs } = await supabase
         .from("daily_logs")
@@ -113,7 +141,8 @@ export default function FriendsPage() {
           id: item.profileId,
           full_name: "Operator",
           handle: "operator",
-          aura_points: 0,
+          earned_ap: 0,
+          vault_ap: 0,
           identity_rank: "Initiate",
           current_streak: 0,
         };
@@ -137,7 +166,8 @@ export default function FriendsPage() {
           id: item.profileId,
           full_name: "Operator",
           handle: "operator",
-          aura_points: 0,
+          earned_ap: 0,
+          vault_ap: 0,
           identity_rank: "Initiate",
           current_streak: 0,
         },
@@ -151,6 +181,30 @@ export default function FriendsPage() {
     }
 
     setLoading(false);
+  }
+
+  async function fetchArenas() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("arenas")
+      .select("id, name, creator_id");
+    if (data) setArenas(data);
+  }
+
+  async function fetchArenaDetails(arenaId: string) {
+    const { data: members } = await supabase
+      .from("arena_members")
+      .select("user_id, profiles:user_id(id, full_name, handle, vault_ap)")
+      .eq("arena_id", arenaId);
+    if (members) setArenaMembers(members);
+
+    const { data: activeBounties } = await supabase
+      .from("arena_bounties")
+      .select("*")
+      .eq("arena_id", arenaId);
+    if (activeBounties) setBounties(activeBounties);
   }
 
   function handleCopyInviteLink() {
@@ -181,7 +235,6 @@ export default function FriendsPage() {
       return;
     }
 
-    // 1. Locate target profile
     const { data: targetProfile, error: searchError } = await supabase
       .from("profiles")
       .select("id, handle")
@@ -194,7 +247,6 @@ export default function FriendsPage() {
       return;
     }
 
-    // 2. Check for existing friendship
     const { data: existing } = await supabase
       .from("friendships")
       .select("id, status")
@@ -210,7 +262,6 @@ export default function FriendsPage() {
       return;
     }
 
-    // 3. Insert friendship request
     const { error: insertError } = await supabase.from("friendships").insert({
       user_id: user.id,
       friend_id: targetProfile.id,
@@ -220,7 +271,6 @@ export default function FriendsPage() {
     if (insertError) {
       setMessage({ text: `Failed to send request: ${insertError.message}`, type: "error" });
     } else {
-      // 4. Dispatch notification signal
       await supabase.from("notifications").insert({
         user_id: targetProfile.id,
         actor_id: user.id,
@@ -250,67 +300,101 @@ export default function FriendsPage() {
           user_id: senderId,
           actor_id: user.id,
           type: "squad_accepted",
-          message: `🤝 Squad Formed: @${myProfile?.handle || "Operator"} accepted your invitation. Your arenas are now linked.`,
+          message: `🤝 Squad Formed: @${myProfile?.handle || "Operator"} accepted your invitation.`,
           is_read: false,
         });
       }
     } else {
-      await supabase
-        .from("friendships")
-        .delete()
-        .eq("id", friendshipId);
+      await supabase.from("friendships").delete().eq("id", friendshipId);
     }
 
     await fetchSocialData();
     setActionLoading(false);
   }
 
-  async function handleNudge(memberId: string) {
-    if (nudgedMap[memberId]) return;
-
+  async function handleCreateArena(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newArenaName.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.from("notifications").insert({
-      user_id: memberId,
-      actor_id: user.id,
-      type: "nudge",
-      message: `⚡ Accountability Ping: @${myProfile?.handle || "Your squadmate"} is tracking today's gauntlet. Verify your disciplines!`,
-      is_read: false,
+    const { data, error } = await supabase
+      .from("arenas")
+      .insert({ name: newArenaName.trim(), creator_id: user.id })
+      .select()
+      .single();
+
+    if (!error && data) {
+      // Automatically add creator to arena members
+      await supabase.from("arena_members").insert({ arena_id: data.id, user_id: user.id });
+      setNewArenaName("");
+      fetchArenas();
+    }
+  }
+
+  async function handleIssueBounty(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedArena || !bountyTarget) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Check if user has enough vault AP
+    if ((myProfile?.vault_ap || 0) < bountyWager) {
+      alert("Insufficient Vault AP for this wager.");
+      return;
+    }
+
+    // Escrow: Deduct vault AP from challenger
+    await supabase
+      .from("profiles")
+      .update({ vault_ap: (myProfile?.vault_ap || 0) - bountyWager })
+      .eq("id", user.id);
+
+    // Create bounty
+    await supabase.from("arena_bounties").insert({
+      arena_id: selectedArena.id,
+      challenger_id: user.id,
+      target_id: bountyTarget,
+      task_title: bountyTask,
+      ap_stake: bountyWager,
+      status: "pending_acceptance",
     });
 
-    setNudgedMap((prev) => ({ ...prev, [memberId]: true }));
+    fetchArenaDetails(selectedArena.id);
+    alert("Bounty deployed successfully into escrow!");
   }
 
   return (
     <div className="pt-10 px-4 pb-32 min-h-screen space-y-6 max-w-md mx-auto">
-      {/* Title Header with Copy Invite Link Button */}
+      {/* Title Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Operator Squad</h1>
-          <p className="text-zinc-500 text-sm font-medium">Peer Accountability & Social Sync</p>
+          <p className="text-zinc-500 text-sm font-medium">Peer Accountability & Arenas</p>
         </div>
 
         <button
           onClick={handleCopyInviteLink}
           className="p-2.5 px-3.5 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 transition-all text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-          title="Copy Personal Squad Invite Link"
         >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Copied!</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Invite Link</span>
-            </>
-          )}
+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Sparkles className="w-3.5 h-3.5 text-emerald-400" />}
+          <span>{copied ? "Copied!" : "Invite Link"}</span>
         </button>
       </div>
 
-      {/* Glass Navigation Tabs */}
+      {/* Vault AP Banner (Dual-Ledger Isolation) */}
+      <div className="liquid-glass rounded-2xl p-4 border border-white/80 bg-gradient-to-r from-zinc-900 to-zinc-800 text-white flex items-center justify-between shadow-md">
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">P2P Arena Vault Balance</p>
+          <p className="text-lg font-black text-emerald-400">{myProfile?.vault_ap || 0} Vault AP</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">Global Rank Power</p>
+          <p className="text-lg font-black text-amber-400">{myProfile?.earned_ap || 0} Earned AP</p>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
       <div className="liquid-glass rounded-2xl p-1.5 flex gap-1 border border-white/80 shadow-sm bg-zinc-200/50 backdrop-blur-md">
         <button
           onClick={() => setActiveTab("squad")}
@@ -321,6 +405,14 @@ export default function FriendsPage() {
           Squad ({friends.length})
         </button>
         <button
+          onClick={() => setActiveTab("arenas")}
+          className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "arenas" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
+          }`}
+        >
+          Arenas
+        </button>
+        <button
           onClick={() => setActiveTab("requests")}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all relative ${
             activeTab === "requests" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
@@ -328,7 +420,7 @@ export default function FriendsPage() {
         >
           Requests
           {pendingRequests.length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-500 text-white font-bold">
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-500 text-white font-bold">
               {pendingRequests.length}
             </span>
           )}
@@ -339,7 +431,7 @@ export default function FriendsPage() {
             activeTab === "add" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-900"
           }`}
         >
-          Add Friend
+          Add
         </button>
       </div>
 
@@ -357,196 +449,169 @@ export default function FriendsPage() {
               {friends.length > 0 ? (
                 friends.map(({ friendshipId, profile, todayCompleted }) => {
                   const displayName = profile?.full_name || (profile?.handle ? `@${profile.handle}` : "Operator");
-                  const isNudged = !!nudgedMap[profile.id];
-
                   return (
-                    <div
-                      key={friendshipId}
-                      className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm flex items-center justify-between backdrop-blur-xl bg-white/70"
-                    >
+                    <div key={friendshipId} className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm flex items-center justify-between bg-white/70">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-zinc-900 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+                        <div className="w-10 h-10 rounded-2xl bg-zinc-900 text-white flex items-center justify-center font-bold text-xs uppercase">
                           {displayName.replace(/^@/, "").charAt(0)}
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-bold text-zinc-900">{displayName}</p>
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
-                              {profile?.identity_rank || "Initiate"}
-                            </span>
-                          </div>
+                          <p className="text-sm font-bold text-zinc-900">{displayName}</p>
                           <div className="flex items-center gap-2 mt-0.5 text-[11px] font-semibold text-zinc-500">
-                            <span className="flex items-center gap-0.5 text-orange-600">
-                              <Flame className="w-3 h-3 text-orange-500 fill-orange-500" />
-                              {profile?.current_streak || 0}d
+                            <span className="text-orange-600 flex items-center gap-0.5">
+                              <Flame className="w-3 h-3 text-orange-500 fill-orange-500" /> {profile?.current_streak || 0}d
                             </span>
                             <span>•</span>
-                            <span className="flex items-center gap-0.5 text-emerald-600">
-                              <Sparkles className="w-3 h-3" />
-                              {profile?.aura_points || 0} AP
-                            </span>
+                            <span className="text-emerald-600">{profile?.earned_ap || 0} AP</span>
                           </div>
                         </div>
                       </div>
-
-                      {/* Status Check / Nudge Action */}
-                      <div className="flex items-center gap-2">
+                      <div>
                         {todayCompleted ? (
-                          <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-[10px] font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Done</span>
+                          <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-700 text-[10px] font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Done
                           </span>
                         ) : (
-                          <button
-                            onClick={() => handleNudge(profile.id)}
-                            disabled={isNudged}
-                            className={`px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                              isNudged
-                                ? "bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed"
-                                : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-800 border border-amber-500/30 active:scale-95"
-                            }`}
-                          >
-                            <Bell className="w-3 h-3 text-amber-600" />
-                            <span>{isNudged ? "Pinged" : "Nudge"}</span>
-                          </button>
+                          <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-800 text-[10px] font-bold">
+                            Pending
+                          </span>
                         )}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="liquid-glass p-8 rounded-3xl text-center space-y-4 border border-white/80 bg-white/60">
+                <div className="liquid-glass p-8 rounded-3xl text-center space-y-3 bg-white/60">
                   <Users className="w-8 h-8 text-zinc-300 mx-auto" />
-                  <div>
-                    <p className="text-sm font-bold text-zinc-800">Squad is Empty</p>
-                    <p className="text-xs text-zinc-400 mt-1 max-w-xs mx-auto">
-                      Accountability increases by 85% when you train with peers. Share your personal invite link to sync streaks and challenge the arena.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleCopyInviteLink}
-                    className="px-4 py-2.5 rounded-2xl bg-zinc-900 text-white text-xs font-bold shadow-md hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copied ? "Link Copied!" : "Copy Squad Invite Link"}</span>
+                  <p className="text-sm font-bold text-zinc-800">Squad is Empty</p>
+                  <button onClick={handleCopyInviteLink} className="px-4 py-2 rounded-2xl bg-zinc-900 text-white text-xs font-bold">
+                    Copy Invite Link
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Tab 2: Incoming Requests */}
+          {/* Tab 2: Custom Arenas & Bounties */}
+          {activeTab === "arenas" && (
+            <div className="space-y-4">
+              {!selectedArena ? (
+                <div className="space-y-4">
+                  <form onSubmit={handleCreateArena} className="liquid-glass p-4 rounded-3xl space-y-3 bg-white/70 border">
+                    <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">Create Private Arena</h3>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Arena Name (e.g. Alpha Elite)"
+                        value={newArenaName}
+                        onChange={(e) => setNewArenaName(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl bg-white border text-xs outline-none"
+                      />
+                      <button type="submit" className="px-4 py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl">
+                        Create
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-zinc-400 uppercase px-1">Your Arenas</h3>
+                    {arenas.map((arena) => (
+                      <div
+                        key={arena.id}
+                        onClick={() => { setSelectedArena(arena); fetchArenaDetails(arena.id); }}
+                        className="liquid-glass p-4 rounded-2xl bg-white/70 border flex items-center justify-between cursor-pointer hover:border-emerald-500"
+                      >
+                        <span className="text-sm font-bold text-zinc-900">{arena.name}</span>
+                        <Swords className="w-4 h-4 text-emerald-600" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <button onClick={() => setSelectedArena(null)} className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                    ← Back to Arenas
+                  </button>
+                  <div className="liquid-glass p-4 rounded-3xl bg-zinc-900 text-white space-y-2">
+                    <h2 className="text-lg font-black">{selectedArena.name}</h2>
+                    <p className="text-xs text-zinc-400">War Room & Zero-Sum Escrow Bounties</p>
+                  </div>
+
+                  {/* Daily Task Card Deck */}
+                  <div className="liquid-glass p-4 rounded-3xl bg-white/70 border space-y-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700">Today's Arena Task Card</h3>
+                    <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
+                      <p className="text-sm font-bold text-zinc-900">{DAILY_TASKS[0].title}</p>
+                      <p className="text-[11px] text-zinc-500">Verification: {DAILY_TASKS[0].verification}</p>
+                    </div>
+                  </div>
+
+                  {/* Issue Zero-Sum Bounty */}
+                  <form onSubmit={handleIssueBounty} className="liquid-glass p-4 rounded-3xl bg-white/70 border space-y-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-800">Issue P2P Bounty (Vault AP Wager)</h3>
+                    <select
+                      value={bountyTarget}
+                      onChange={(e) => setBountyTarget(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white border text-xs"
+                    >
+                      <option value="">Select Target Friend</option>
+                      {friends.map((f) => (
+                        <option key={f.profile.id} value={f.profile.id}>{f.profile.full_name || f.profile.handle}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Wager Vault AP (e.g. 20)"
+                      value={bountyWager}
+                      onChange={(e) => setBountyWager(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl bg-white border text-xs"
+                    />
+                    <button type="submit" className="w-full py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl">
+                      Deploy Bounty in Escrow
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 3: Requests */}
           {activeTab === "requests" && (
             <div className="space-y-3">
-              {pendingRequests.length > 0 ? (
-                pendingRequests.map(({ friendshipId, profile }) => (
-                  <div
-                    key={friendshipId}
-                    className="liquid-glass rounded-3xl p-4 border border-white/80 shadow-sm flex items-center justify-between backdrop-blur-xl bg-white/70"
-                  >
-                    <div>
-                      <p className="text-sm font-bold text-zinc-900">{profile?.full_name || profile?.handle}</p>
-                      <p className="text-[11px] text-zinc-400 font-medium">@{profile?.handle || "operator"}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleRespondRequest(friendshipId, profile.id, true)}
-                        disabled={actionLoading}
-                        className="p-2 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-                        title="Accept"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleRespondRequest(friendshipId, profile.id, false)}
-                        disabled={actionLoading}
-                        className="p-2 rounded-xl bg-zinc-100 text-zinc-500 hover:bg-rose-50 hover:text-rose-600 transition-all cursor-pointer disabled:opacity-50"
-                        title="Decline"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
+              {pendingRequests.map(({ friendshipId, profile }) => (
+                <div key={friendshipId} className="liquid-glass rounded-3xl p-4 border flex items-center justify-between bg-white/70">
+                  <p className="text-sm font-bold">@{profile?.handle}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleRespondRequest(friendshipId, profile.id, true)} className="p-2 bg-emerald-500 text-white rounded-xl">
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleRespondRequest(friendshipId, profile.id, false)} className="p-2 bg-zinc-200 text-zinc-600 rounded-xl">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                ))
-              ) : (
-                <div className="liquid-glass p-8 rounded-3xl text-center space-y-2 border border-white/80 bg-white/60">
-                  <p className="text-sm font-bold text-zinc-700">No pending requests</p>
-                  <p className="text-xs text-zinc-400">Incoming squad invites will appear here.</p>
                 </div>
-              )}
+              ))}
             </div>
           )}
 
-          {/* Tab 3: Search & Add Friend */}
+          {/* Tab 4: Add Friend */}
           {activeTab === "add" && (
-            <div className="space-y-4">
-              {/* Viral Referral Pass Banner */}
-              <div className="liquid-glass rounded-3xl p-5 border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-xl space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700">
-                    Viral Invite Pass
-                  </span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700">
-                    7-Day Pass Included
-                  </span>
-                </div>
-                <p className="text-xs font-medium text-zinc-600 leading-relaxed">
-                  Send your personal invite link. When friends accept, they bypass manual requests and immediately sync to your squad.
-                </p>
-                <div className="flex items-center gap-2 pt-1">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${myProfile?.handle || "operator"}`}
-                    className="flex-1 bg-white/80 border border-emerald-500/20 rounded-xl px-3 py-2 text-[11px] font-mono text-zinc-600 outline-none select-all"
-                  />
-                  <button
-                    onClick={handleCopyInviteLink}
-                    className="px-3 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copied ? "Copied" : "Copy"}</span>
-                  </button>
-                </div>
+            <form onSubmit={handleSendRequest} className="space-y-3 liquid-glass p-6 rounded-3xl bg-white/70 border">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">Manual Handle Lookup</p>
+              <div className="relative">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-4 top-3" />
+                <input
+                  type="text"
+                  placeholder="operator_handle"
+                  value={searchHandle}
+                  onChange={(e) => setSearchHandle(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border text-xs"
+                />
               </div>
-
-              {/* Search by Handle Form */}
-              <form onSubmit={handleSendRequest} className="space-y-3 pt-2">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 px-1">
-                  Manual Handle Lookup
-                </p>
-                <div className="relative">
-                  <Search className="w-4 h-4 text-zinc-400 absolute left-4 top-3.5" />
-                  <input
-                    type="text"
-                    placeholder="Enter handle (e.g. rahul_99)"
-                    value={searchHandle}
-                    onChange={(e) => setSearchHandle(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/80 border border-zinc-200 text-xs font-semibold placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !searchHandle.trim()}
-                  className="w-full py-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send Squad Invite"}
-                </button>
-              </form>
-
-              {message && (
-                <div
-                  className={`p-3 rounded-2xl text-xs font-bold border flex items-center gap-2 ${
-                    message.type === "success"
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                      : "bg-rose-50 border-rose-200 text-rose-600"
-                  }`}
-                >
-                  {message.type === "success" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
-                  <span>{message.text}</span>
-                </div>
-              )}
-            </div>
+              <button type="submit" disabled={actionLoading} className="w-full py-2.5 bg-zinc-900 text-white font-bold text-xs rounded-xl">
+                Send Squad Invite
+              </button>
+            </form>
           )}
         </>
       )}
