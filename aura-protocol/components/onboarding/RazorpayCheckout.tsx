@@ -70,16 +70,18 @@ export default function RazorpayCheckout({
         handler: async function (response: any) {
           try {
             // 3. Verify signature cryptographically on server
-            const verifyRes = await fetch("/api/razorpay/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                user_id: user.id,
-              }),
-            });
+            // Inside components/onboarding/RazorpayCheckout.tsx
+
+const verifyRes = await fetch("/api/payments/verify", { // <-- Make sure this matches your folder path
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    razorpay_order_id: response.razorpay_order_id,
+    razorpay_payment_id: response.razorpay_payment_id,
+    razorpay_signature: response.razorpay_signature,
+    user_id: user.id,
+  }),
+});
 
             const verifyData = await verifyRes.json();
             if (!verifyRes.ok) throw new Error(verifyData.error || "Signature verification failed.");
