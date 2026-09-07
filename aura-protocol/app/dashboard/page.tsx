@@ -27,6 +27,26 @@ function formatDuration(totalSeconds: number): string {
   return `${mins}m`;
 }
 
+// Subscription Lifecycle Calculator (7 Days Active -> 2 Days Grace -> Locked)
+function getProtocolStatus(trialEndsAt: string | null): "active" | "grace" | "locked" {
+  if (!trialEndsAt) return "active";
+
+  const now = new Date();
+  const expiry = new Date(trialEndsAt);
+  
+  // 2-day grace period window after the initial 7 days
+  const gracePeriodEnd = new Date(expiry);
+  gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 2);
+
+  if (now <= expiry) {
+    return "active"; // Days 1-7: Fully active, zero interruptions
+  } else if (now > expiry && now <= gracePeriodEnd) {
+    return "grace";  // Days 8-9: Soft warning banner, bypassable
+  } else {
+    return "locked"; // Day 10+: Full renewal paywall lock
+  }
+}
+
 export default async function DashboardPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -49,10 +69,7 @@ export default async function DashboardPage() {
     return redirect("/onboarding");
   }
 
-  // Guard: Ensure stake is paid before accessing the Command Center
-  if (!profile.stake_paid) {
-    return redirect("/onboarding/payment");
-  }
+  // NOTE: Removed the harsh `!profile.stake_paid` redirect trap entirely!
 
   // 2. Fetch or initialize today's daily log
   let { data: todayLog } = await supabase
@@ -173,6 +190,7 @@ export default async function DashboardPage() {
     identityRank: profile.identity_rank || "Initiate",
     currentStreak: profile.current_streak || 0,
     streakShields: profile.streak_shields || 0,
+    protocolStatus: getProtocolStatus(profile.trial_ends_at), // Passed to client for banner/lock rendering
   };
 
   return (
