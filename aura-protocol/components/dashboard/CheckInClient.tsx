@@ -121,8 +121,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   // STATE 3: DAY 10+ -> FULL RENEWAL LOCK INTERFACE
   if (protocolStatus === "locked") {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-emerald-50/50 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full liquid-glass rounded-3xl p-8 border border-white/90 shadow-2xl backdrop-blur-2xl bg-white/85 text-center space-y-6">
+      <main className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full liquid-glass rounded-3xl p-8 text-center space-y-6">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-extrabold uppercase tracking-widest">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Subscription Renewal Required</span>
@@ -388,11 +388,11 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const strokeDashoffset = circumference - (calculatedDailyScore / 100) * circumference;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-emerald-50/40 text-zinc-900 relative">
+    <div className="min-h-screen text-zinc-900 relative">
       
-      {/* STATE 2: DAYS 8-9 -> SOFT WARNING BANNER (Bypassable) */}
+      {/* STATE 2: DAYS 8-9 -> SOFT WARNING BANNER */}
       {protocolStatus === "grace" && !dismissedGrace && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-3 flex items-center justify-between text-xs font-bold text-amber-900 sticky top-0 z-50 backdrop-blur-md">
+        <div className="liquid-glass border-b border-amber-500/30 px-4 py-3 flex items-center justify-between text-xs font-bold text-amber-900 sticky top-0 z-50">
           <div className="flex items-center gap-2 max-w-4xl mx-auto">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>
@@ -424,17 +424,17 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-orange-600 bg-white/70 backdrop-blur-md">
+            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 text-xs font-bold text-orange-600">
               <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
               <span>{currentStreakCount}d</span>
             </div>
 
-            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-blue-600 bg-white/70 backdrop-blur-md">
+            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 text-xs font-bold text-blue-600">
               <Shield className="w-3.5 h-3.5 text-blue-500" />
               <span>{currentShields}</span>
             </div>
 
-            <div className="liquid-glass px-3 py-1.5 rounded-2xl flex items-center gap-1.5 border border-white/80 shadow-xs text-xs font-black text-emerald-600 bg-white/70 backdrop-blur-md">
+            <div className="liquid-glass px-3 py-1.5 rounded-2xl flex items-center gap-1.5 text-xs font-black text-emerald-600">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{currentAP} AP</span>
             </div>
@@ -442,7 +442,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
 
         {/* TOP CARD: DAILY GAUNTLET */}
-        <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80">
+        <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between shadow-lg">
           <div className="flex-1">
             <p className="text-zinc-800 font-bold text-base mb-0.5 tracking-tight">Daily Gauntlet</p>
             <div className="text-zinc-500 text-xs font-medium mb-3">
@@ -483,7 +483,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         <div className="grid grid-cols-2 gap-3">
           <Link 
             href="/history?tab=work" 
-            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 group"
+            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all shadow-lg group"
           >
             <div>
               <div className="flex items-center justify-between mb-0.5">
@@ -504,7 +504,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
           <Link 
             href="/history?tab=gym" 
-            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 group"
+            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all shadow-lg group"
           >
             <div>
               <div className="flex items-center justify-between mb-0.5">
@@ -525,7 +525,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
           <Link 
             href="/arena" 
-            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 active:scale-98 transition-all"
+            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden shadow-lg active:scale-98 transition-all"
           >
             <Trophy className="w-6 h-6 text-amber-500 mb-1" />
             <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">Percentile</p>
@@ -535,7 +535,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
           <Link 
             href="/autopsy" 
-            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 active:scale-98 transition-all"
+            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden shadow-lg active:scale-98 transition-all"
           >
             <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Consistency</p>
             <p className="text-3xl font-black tabular-nums text-zinc-900">{consistencyScore}%</p>
@@ -548,10 +548,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
             Visual Proof Pillars
           </h2>
-          <div className="liquid-glass rounded-3xl p-2.5 flex flex-col gap-2.5 border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80">
+          <div className="liquid-glass rounded-3xl p-2.5 flex flex-col gap-2.5 shadow-lg">
             
             {/* Gym Verification */}
-            <div className={`rounded-2xl transition-all overflow-hidden border ${isGymDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs"}`}>
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isGymDone ? "bg-emerald-500/10 border-emerald-500/30" : "liquid-glass shadow-xs"}`}>
               <button 
                 onClick={() => setActiveAction(activeAction === "gym" ? null : "gym")} 
                 className="flex items-center justify-between p-3.5 w-full text-left"
@@ -570,19 +570,19 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               
               {activeAction === "gym" && !isGymDone && (
                 <div className="px-3.5 pb-3.5 pt-1 space-y-3">
-                  <div className="p-4 bg-white/80 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5 shadow-xs">
+                  <div className="p-4 liquid-glass rounded-2xl border border-zinc-200/60 text-center flex flex-col items-center gap-1.5 shadow-xs">
                     <Camera className="w-5 h-5 text-zinc-400" />
                     <p className="text-xs text-zinc-600 font-medium">
                       Show today&apos;s gesture: <strong className="text-zinc-900">{typeof gesture === "string" ? gesture : (gesture?.name || gesture?.gesture_name || "✌️ Peace Sign")}</strong>
                     </p>
-                    <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                    <label className="mt-1 px-4 py-2 liquid-glass rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm flex items-center gap-2">
                       <Upload className="w-3.5 h-3.5" />
                       <span>{gymFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setGymFile(e.target.files?.[0] || null)} />
                     </label>
                   </div>
                   <div className="flex gap-2">
-                    <Link href="/time" className="flex-1 py-2.5 bg-white/90 hover:bg-white text-zinc-700 border border-zinc-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs">
+                    <Link href="/time" className="flex-1 py-2.5 liquid-glass text-zinc-700 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Stopwatch</span>
                     </Link>
@@ -601,7 +601,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             </div>
 
             {/* Deep Work Verification */}
-            <div className={`rounded-2xl transition-all overflow-hidden border ${isWorkDone ? "bg-blue-500/10 border-blue-500/30" : "bg-white/70 border-white/80 shadow-xs"}`}>
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isWorkDone ? "bg-blue-500/10 border-blue-500/30" : "liquid-glass shadow-xs"}`}>
               <button 
                 onClick={() => setActiveAction(activeAction === "work" ? null : "work")} 
                 className="flex items-center justify-between p-3.5 w-full text-left"
@@ -620,17 +620,17 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               
               {activeAction === "work" && !isWorkDone && (
                 <div className="px-3.5 pb-3.5 pt-1 space-y-3">
-                  <div className="p-4 bg-white/80 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5 shadow-xs">
+                  <div className="p-4 liquid-glass rounded-2xl border border-zinc-200/60 text-center flex flex-col items-center gap-1.5 shadow-xs">
                     <Camera className="w-5 h-5 text-zinc-400" />
                     <p className="text-xs text-zinc-600 font-medium">Capture workspace visual proof</p>
-                    <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                    <label className="mt-1 px-4 py-2 liquid-glass rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm flex items-center gap-2">
                       <Upload className="w-3.5 h-3.5" />
                       <span>{workFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setWorkFile(e.target.files?.[0] || null)} />
                     </label>
                   </div>
                   <div className="flex gap-2">
-                    <Link href="/time" className="flex-1 py-2.5 bg-white/90 hover:bg-white text-blue-700 border border-blue-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs">
+                    <Link href="/time" className="flex-1 py-2.5 liquid-glass text-blue-700 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Stopwatch</span>
                     </Link>
@@ -649,7 +649,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             </div>
 
             {/* Meals Logging */}
-            <div className={`rounded-2xl transition-all overflow-hidden border ${isNutritionDone ? "bg-orange-500/10 border-orange-500/30" : "bg-white/70 border-white/80 shadow-xs"}`}>
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isNutritionDone ? "bg-orange-500/10 border-orange-500/30" : "liquid-glass shadow-xs"}`}>
               <button 
                 onClick={() => setActiveAction(activeAction === "meals" ? null : "meals")} 
                 className="flex items-center justify-between p-3.5 w-full text-left"
@@ -668,10 +668,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               
               {activeAction === "meals" && mealsLoggedCount < 5 && (
                 <div className="px-3.5 pb-3.5 pt-1 space-y-3">
-                  <div className="p-4 bg-white/80 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5 shadow-xs">
+                  <div className="p-4 liquid-glass rounded-2xl border border-zinc-200/60 text-center flex flex-col items-center gap-1.5 shadow-xs">
                     <Camera className="w-5 h-5 text-zinc-400" />
                     <p className="text-xs text-zinc-600 font-medium">Capture meal photo ({mealsLoggedCount + 1}/5)</p>
-                    <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
+                    <label className="mt-1 px-4 py-2 liquid-glass rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm flex items-center gap-2">
                       <Upload className="w-3.5 h-3.5" />
                       <span>{mealFile ? "Photo Selected ✓" : "Capture Live Photo"}</span>
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setMealFile(e.target.files?.[0] || null)} />
@@ -697,12 +697,12 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
             Routine Disciplines
           </h2>
-          <div className="liquid-glass rounded-3xl p-2.5 flex flex-col gap-2 border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80">
+          <div className="liquid-glass rounded-3xl p-2.5 flex flex-col gap-2 shadow-lg">
             
             <div 
               onClick={() => handleTogglePillar("morning_routine", 5, 15)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isMorningDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
+                isMorningDone ? "bg-emerald-500/10 border-emerald-500/30" : "liquid-glass shadow-xs"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -726,7 +726,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             <div 
               onClick={() => handleTogglePillar("learning", 5, 15)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isLearningDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
+                isLearningDone ? "bg-emerald-500/10 border-emerald-500/30" : "liquid-glass shadow-xs"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -750,7 +750,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             <div 
               onClick={() => handleTogglePillar("sleep_target", 5, 15)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isSleepDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
+                isSleepDone ? "bg-emerald-500/10 border-emerald-500/30" : "liquid-glass shadow-xs"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -774,7 +774,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             <div 
               onClick={() => handleTogglePillar("daily_review", 5, 10)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isReviewDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
+                isReviewDone ? "bg-emerald-500/10 border-emerald-500/30" : "liquid-glass shadow-xs"
               }`}
             >
               <div className="flex items-center gap-3">
