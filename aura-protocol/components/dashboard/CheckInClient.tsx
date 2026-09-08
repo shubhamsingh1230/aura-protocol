@@ -388,7 +388,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
   const strokeDashoffset = circumference - (calculatedDailyScore / 100) * circumference;
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 relative">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-zinc-100 to-emerald-50/40 text-zinc-900 relative">
       
       {/* STATE 2: DAYS 8-9 -> SOFT WARNING BANNER (Bypassable) */}
       {protocolStatus === "grace" && !dismissedGrace && (
@@ -424,17 +424,17 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-orange-600 bg-white/70">
+            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-orange-600 bg-white/70 backdrop-blur-md">
               <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
               <span>{currentStreakCount}d</span>
             </div>
 
-            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-blue-600 bg-white/70">
+            <div className="liquid-glass px-2.5 py-1.5 rounded-2xl flex items-center gap-1 border border-white/80 shadow-xs text-xs font-bold text-blue-600 bg-white/70 backdrop-blur-md">
               <Shield className="w-3.5 h-3.5 text-blue-500" />
               <span>{currentShields}</span>
             </div>
 
-            <div className="liquid-glass px-3 py-1.5 rounded-2xl flex items-center gap-1.5 border border-white/80 shadow-xs text-xs font-black text-emerald-600 bg-white/70">
+            <div className="liquid-glass px-3 py-1.5 rounded-2xl flex items-center gap-1.5 border border-white/80 shadow-xs text-xs font-black text-emerald-600 bg-white/70 backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{currentAP} AP</span>
             </div>
@@ -442,7 +442,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         </div>
 
         {/* TOP CARD: DAILY GAUNTLET */}
-        <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between border border-white/80 shadow-sm backdrop-blur-xl bg-white/75">
+        <div className="liquid-glass rounded-3xl p-5 flex items-center justify-between border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80">
           <div className="flex-1">
             <p className="text-zinc-800 font-bold text-base mb-0.5 tracking-tight">Daily Gauntlet</p>
             <div className="text-zinc-500 text-xs font-medium mb-3">
@@ -483,7 +483,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
         <div className="grid grid-cols-2 gap-3">
           <Link 
             href="/history?tab=work" 
-            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
+            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 group"
           >
             <div>
               <div className="flex items-center justify-between mb-0.5">
@@ -504,7 +504,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
           <Link 
             href="/history?tab=gym" 
-            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 group"
+            className="liquid-glass rounded-3xl p-4 flex flex-col justify-between aspect-square active:scale-98 transition-all border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 group"
           >
             <div>
               <div className="flex items-center justify-between mb-0.5">
@@ -525,7 +525,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
           <Link 
             href="/arena" 
-            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
+            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 active:scale-98 transition-all"
           >
             <Trophy className="w-6 h-6 text-amber-500 mb-1" />
             <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider">Percentile</p>
@@ -535,7 +535,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
 
           <Link 
             href="/autopsy" 
-            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/80 shadow-sm backdrop-blur-xl bg-white/70 active:scale-98 transition-all"
+            className="liquid-glass rounded-3xl p-4 aspect-square flex flex-col justify-center items-center text-center relative overflow-hidden border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80 active:scale-98 transition-all"
           >
             <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1">Consistency</p>
             <p className="text-3xl font-black tabular-nums text-zinc-900">{consistencyScore}%</p>
@@ -548,10 +548,10 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
             Visual Proof Pillars
           </h2>
-          <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-2 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
+          <div className="liquid-glass rounded-3xl p-2.5 flex flex-col gap-2.5 border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80">
             
             {/* Gym Verification */}
-            <div className={`rounded-2xl transition-all overflow-hidden border ${isGymDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100"}`}>
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isGymDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs"}`}>
               <button 
                 onClick={() => setActiveAction(activeAction === "gym" ? null : "gym")} 
                 className="flex items-center justify-between p-3.5 w-full text-left"
@@ -569,8 +569,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               </button>
               
               {activeAction === "gym" && !isGymDone && (
-                <div className="px-3 pb-3 pt-1 space-y-3">
-                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
+                <div className="px-3.5 pb-3.5 pt-1 space-y-3">
+                  <div className="p-4 bg-white/80 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5 shadow-xs">
                     <Camera className="w-5 h-5 text-zinc-400" />
                     <p className="text-xs text-zinc-600 font-medium">
                       Show today&apos;s gesture: <strong className="text-zinc-900">{typeof gesture === "string" ? gesture : (gesture?.name || gesture?.gesture_name || "✌️ Peace Sign")}</strong>
@@ -582,7 +582,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                     </label>
                   </div>
                   <div className="flex gap-2">
-                    <Link href="/time" className="flex-1 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1">
+                    <Link href="/time" className="flex-1 py-2.5 bg-white/90 hover:bg-white text-zinc-700 border border-zinc-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Stopwatch</span>
                     </Link>
@@ -601,7 +601,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             </div>
 
             {/* Deep Work Verification */}
-            <div className={`rounded-2xl transition-all overflow-hidden border ${isWorkDone ? "bg-blue-500/5 border-blue-500/20" : "bg-white/60 border-zinc-100"}`}>
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isWorkDone ? "bg-blue-500/10 border-blue-500/30" : "bg-white/70 border-white/80 shadow-xs"}`}>
               <button 
                 onClick={() => setActiveAction(activeAction === "work" ? null : "work")} 
                 className="flex items-center justify-between p-3.5 w-full text-left"
@@ -619,8 +619,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               </button>
               
               {activeAction === "work" && !isWorkDone && (
-                <div className="px-3 pb-3 pt-1 space-y-3">
-                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
+                <div className="px-3.5 pb-3.5 pt-1 space-y-3">
+                  <div className="p-4 bg-white/80 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5 shadow-xs">
                     <Camera className="w-5 h-5 text-zinc-400" />
                     <p className="text-xs text-zinc-600 font-medium">Capture workspace visual proof</p>
                     <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
@@ -630,7 +630,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
                     </label>
                   </div>
                   <div className="flex gap-2">
-                    <Link href="/time" className="flex-1 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1">
+                    <Link href="/time" className="flex-1 py-2.5 bg-white/90 hover:bg-white text-blue-700 border border-blue-200 text-center font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs">
                       <Clock className="w-3.5 h-3.5" />
                       <span>Stopwatch</span>
                     </Link>
@@ -649,7 +649,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             </div>
 
             {/* Meals Logging */}
-            <div className={`rounded-2xl transition-all overflow-hidden border ${isNutritionDone ? "bg-orange-500/5 border-orange-500/20" : "bg-white/60 border-zinc-100"}`}>
+            <div className={`rounded-2xl transition-all overflow-hidden border ${isNutritionDone ? "bg-orange-500/10 border-orange-500/30" : "bg-white/70 border-white/80 shadow-xs"}`}>
               <button 
                 onClick={() => setActiveAction(activeAction === "meals" ? null : "meals")} 
                 className="flex items-center justify-between p-3.5 w-full text-left"
@@ -667,8 +667,8 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
               </button>
               
               {activeAction === "meals" && mealsLoggedCount < 5 && (
-                <div className="px-3 pb-3 pt-1 space-y-3">
-                  <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5">
+                <div className="px-3.5 pb-3.5 pt-1 space-y-3">
+                  <div className="p-4 bg-white/80 rounded-2xl border border-zinc-200 border-dashed text-center flex flex-col items-center gap-1.5 shadow-xs">
                     <Camera className="w-5 h-5 text-zinc-400" />
                     <p className="text-xs text-zinc-600 font-medium">Capture meal photo ({mealsLoggedCount + 1}/5)</p>
                     <label className="mt-1 px-4 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 cursor-pointer shadow-sm hover:bg-zinc-50 flex items-center gap-2">
@@ -697,12 +697,12 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
           <h2 className="text-xs font-bold text-zinc-400 mb-2 px-1 uppercase tracking-wider">
             Routine Disciplines
           </h2>
-          <div className="liquid-glass rounded-3xl p-2 flex flex-col gap-1.5 border border-white/80 shadow-sm backdrop-blur-xl bg-white/70">
+          <div className="liquid-glass rounded-3xl p-2.5 flex flex-col gap-2 border border-white/90 shadow-lg backdrop-blur-2xl bg-white/80">
             
             <div 
               onClick={() => handleTogglePillar("morning_routine", 5, 15)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isMorningDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+                isMorningDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -726,7 +726,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             <div 
               onClick={() => handleTogglePillar("learning", 5, 15)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isLearningDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+                isLearningDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -750,7 +750,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             <div 
               onClick={() => handleTogglePillar("sleep_target", 5, 15)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isSleepDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+                isSleepDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -774,7 +774,7 @@ export default function CheckInClient({ profile, initialLog, gesture, analytics 
             <div 
               onClick={() => handleTogglePillar("daily_review", 5, 10)}
               className={`p-3.5 rounded-2xl cursor-pointer flex items-center justify-between transition-all border ${
-                isReviewDone ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/60 border-zinc-100 hover:bg-white/80"
+                isReviewDone ? "bg-emerald-500/10 border-emerald-500/30" : "bg-white/70 border-white/80 shadow-xs hover:bg-white/90"
               }`}
             >
               <div className="flex items-center gap-3">
