@@ -94,6 +94,21 @@ export default async function DashboardPage() {
     todayLog = createdLog;
   }
 
+  // =====================================================================
+  // NEW: Increment active days for Lobby Progression (Once per day)
+  // =====================================================================
+  const currentStatus = getProtocolStatus(profile.trial_ends_at);
+  if (currentStatus !== "locked" && profile.last_active_date !== todayDate) {
+    await supabase
+      .from("profiles")
+      .update({
+        active_days_count: (profile.active_days_count || 0) + 1,
+        last_active_date: todayDate,
+      })
+      .eq("id", user.id);
+  }
+  // =====================================================================
+
   // 3. Fetch past 7 days of time logs for visual bar sparklines
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
@@ -190,7 +205,7 @@ export default async function DashboardPage() {
     identityRank: profile.identity_rank || "Initiate",
     currentStreak: profile.current_streak || 0,
     streakShields: profile.streak_shields || 0,
-    protocolStatus: getProtocolStatus(profile.trial_ends_at), // Passed to client for banner/lock rendering
+    protocolStatus: currentStatus, 
   };
 
   return (
