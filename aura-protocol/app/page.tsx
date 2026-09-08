@@ -1,6 +1,6 @@
+// app/page.tsx
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { hasLiveStakeInActiveSeason } from "@/lib/season";
 import LandingAuthClient from "@/components/auth/LandingAuthClient";
 
 // 1. Force dynamic rendering: Tells Next.js to NEVER statically build this auth page
@@ -20,18 +20,13 @@ export default async function RootPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("contract_signed_at")
+    .select("contract_signed_at, onboarding_completed")
     .eq("id", user.id)
     .single();
 
-  if (!profile?.contract_signed_at) {
+  // If contract isn't signed or onboarding isn't completed, route to onboarding
+  if (!profile || !profile.onboarding_completed || !profile.contract_signed_at) {
     redirect("/onboarding");
-  }
-
-  const { hasStake } = await hasLiveStakeInActiveSeason(user.id);
-  
-  if (!hasStake) {
-    redirect("/onboarding/stake");
   }
 
   // Final redirect straight to Command Center for returning active users
