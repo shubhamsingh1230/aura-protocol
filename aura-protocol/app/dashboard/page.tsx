@@ -196,7 +196,7 @@ export default async function DashboardPage() {
   const below = belowCount || 0;
   const rankPercent = Math.max(1, 100 - Math.round((below / total) * 100));
 
-  const analytics = {
+ const analytics = {
     consistencyScore,
     percentile: rankPercent,
     workTrend,
@@ -208,7 +208,7 @@ export default async function DashboardPage() {
     identityRank: profile.identity_rank || "Initiate",
     currentStreak: profile.current_streak || 0,
     streakShields: profile.streak_shields || 0,
-    protocolStatus: currentStatus, 
+    protocolStatus: getProtocolStatus(profile.trial_ends_at, profile.subscription_status), // Updated with status check
   };
 
   return (
