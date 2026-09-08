@@ -28,8 +28,11 @@ function formatDuration(totalSeconds: number): string {
 }
 
 // Subscription Lifecycle Calculator (7 Days Active -> 2 Days Grace -> Locked)
-function getProtocolStatus(trialEndsAt: string | null): "active" | "grace" | "locked" {
-  if (!trialEndsAt) return "active";
+function getProtocolStatus(trialEndsAt: string | null, subscriptionStatus: string | null): "active" | "grace" | "locked" {
+  // If status is explicitly trialing or active, or date is missing, treat as active
+  if (subscriptionStatus === "trialing" || subscriptionStatus === "active" || !trialEndsAt) {
+    return "active";
+  }
 
   const now = new Date();
   const expiry = new Date(trialEndsAt);
